@@ -5,11 +5,11 @@
         public readonly int index;
         public readonly double x, y;
 
-        public CDTVertex(int index, double x, double y)
+        public CDTVertex(double x, double y, int index)
         {
-            this.index = index;
             this.x = x;
             this.y = y;
+            this.index = index;
         }
     }
 }
