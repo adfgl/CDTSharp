@@ -11,12 +11,12 @@ namespace CDTSharpTests
             Vec2 b = new Vec2(170.708, 197.264);
             Vec2 c = new Vec2(199.125, 103.244);
 
-            CDTCircle actual = new CDTCircle(a, b, c);
+            Assert.True(CDTGeometry.CircleFromThreePoints(a.x, a.y, b.x, b.y, c.x, c.y, out double cx, out double cy, out double rSqr));
 
             const double epsilon = 1e-3;
-            Assert.Equal(144.018, actual.cx, epsilon);
-            Assert.Equal(137.893, actual.cy, epsilon);
-            Assert.Equal(65.094, Math.Sqrt(actual.radiusSquared), epsilon);
+            Assert.Equal(144.018, cx, epsilon);
+            Assert.Equal(137.893, cy, epsilon);
+            Assert.Equal(65.094, Math.Sqrt(rSqr), epsilon);
         }
     }
 }
