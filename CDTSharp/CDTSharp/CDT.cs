@@ -3,7 +3,7 @@
     public class CDT
     {
         readonly List<Vec2> _vertices = new List<Vec2>();
-        readonly List<CDTTriangle> _triangles = new List<CDTTriangle>();
+        readonly List<Triangle> _triangles = new List<Triangle>();
 
         public void Triangulate(IEnumerable<Vec2> vertices)
         {
@@ -15,9 +15,11 @@
             {
                 throw new ArgumentException("Set of points must contain at least 3 points.");
             }
+
+            Rect bounds = Rect.FromPoints(unique);
         }
 
         public IReadOnlyList<Vec2> Vertices => _vertices;
-        public IReadOnlyList<CDTTriangle> Triangles => _triangles;
+        public IReadOnlyList<Triangle> Triangles => _triangles;
     }
 }
