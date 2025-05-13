@@ -4,12 +4,12 @@
     {
         public const int NO_INDEX = -1;
 
-        public static CDTRect Bounds(IEnumerable<CDTVertex> vertices)
+        public static CDTRect Bounds(IEnumerable<Vec2> vertices)
         {
             double minX, minY, maxX, maxY;
             minX = minY = double.MaxValue;
             maxX = maxY = double.MinValue;
-            foreach (CDTVertex vtx in vertices)
+            foreach (Vec2 vtx in vertices)
             {
                 double x = vtx.x;
                 double y = vtx.y;
@@ -22,18 +22,18 @@
             return new CDTRect(minX, minY, maxX, maxY);
         }
 
-        public static List<CDTVertex> ExtractUnique(IEnumerable<CDTVertex> vertices, double eps = 1e-6)
+        public static List<Vec2> ExtractUnique(IEnumerable<Vec2> vertices, double eps = 1e-6)
         {
-            List<CDTVertex> unique = new List<CDTVertex>();
+            List<Vec2> unique = new List<Vec2>();
 
             double epsSqr = eps * eps;
-            foreach (CDTVertex vtx in vertices)
+            foreach (Vec2 vtx in vertices)
             {
                 double x = vtx.x;
                 double y = vtx.y;
 
                 bool duplicate = false;
-                foreach (CDTVertex existing in unique)
+                foreach (Vec2 existing in unique)
                 {
                     double dx = existing.x - x;
                     double dy = existing.y - y;
@@ -46,10 +46,11 @@
 
                 if (!duplicate)
                 {
-                    unique.Add(new CDTVertex(x, y, unique.Count));
+                    unique.Add(new Vec2(x, y));
                 }
             }
             return unique;
         }
+
     }
 }

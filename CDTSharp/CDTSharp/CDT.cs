@@ -2,23 +2,22 @@
 {
     public class CDT
     {
-        readonly List<CDTVertex> _vertices = new List<CDTVertex>();
+        readonly List<Vec2> _vertices = new List<Vec2>();
         readonly List<CDTTriangle> _triangles = new List<CDTTriangle>();
 
-        public void Triangulate(IEnumerable<CDTVertex> vertices)
+        public void Triangulate(IEnumerable<Vec2> vertices)
         {
             _vertices.Clear();
             _triangles.Clear();
 
-            List<CDTVertex> unique = CDTGeometry.ExtractUnique(vertices);
+            List<Vec2> unique = CDTGeometry.ExtractUnique(vertices);
             if (unique.Count < 3)
             {
                 throw new ArgumentException("Set of points must contain at least 3 points.");
             }
         }
 
-
-
-
+        public IReadOnlyList<Vec2> Vertices => _vertices;
+        public IReadOnlyList<CDTTriangle> Triangles => _triangles;
     }
 }
