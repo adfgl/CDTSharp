@@ -14,27 +14,37 @@ namespace CDTSharp
             this.radiusSquared = radius * radius;
         }
 
-        public CDTCircle(CDTVertex a, CDTVertex b, CDTVertex c)
+        public CDTCircle(CDTVertex v1, CDTVertex v2, CDTVertex v3)
         {
-            double x1 = a.x, y1 = a.y;
-            double x2 = b.x, y2 = b.y;
-            double x3 = c.x, y3 = c.y;
+            double x1 = v1.x, y1 = v1.y;
+            double x2 = v2.x, y2 = v2.y;
+            double x3 = v3.x, y3 = v3.y;
 
-            double dx12 = x1 - x2;
-            double dy12 = y1 - y2;
-            double dx13 = x1 - x3;
-            double dy13 = y1 - y3;
+            // https://stackoverflow.com/questions/62488827/solving-equation-to-find-center-point-of-circle-from-3-points
+            var x12 = x1 - x2;
+            var x13 = x1 - x3;
 
-            double midpointProjection12 = (x1 * x1 - x2 * x2 + y1 * y1 - y2 * y2) * 0.5;
-            double midpointProjection13 = (x1 * x1 - x3 * x3 + y1 * y1 - y3 * y3) * 0.5;
+            var y12 = y1 - y2;
+            var y13 = y1 - y3;
 
-            double determinant = dx12 * dy13 - dy12 * dx13;
-            cx = (dy13 * midpointProjection12 - dy12 * midpointProjection13) / determinant;
-            cy = (dx12 * midpointProjection13 - dx13 * midpointProjection12) / determinant;
+            var y31 = y3 - y1;
+            var y21 = y2 - y1;
 
-            double dx = x1 - cx;
-            double dy = y1 - cy;
-            radiusSquared = dx * dx + dy * dy;
+            var x31 = x3 - x1;
+            var x21 = x2 - x1;
+
+            var sx13 = x1 * x1 - x3 * x3;
+            var sy13 = y1 * y1 - y3 * y3;
+            var sx21 = x2 * x2 - x1 * x1;
+            var sy21 = y2 * y2 - y1 * y1;
+
+            var f = (sx13 * x12 + sy13 * x12 + sx21 * x13 + sy21 * x13) / (2 * (y31 * x12 - y21 * x13));
+            var g = (sx13 * y12 + sy13 * y12 + sx21 * y13 + sy21 * y13) / (2 * (x31 * y12 - x21 * y13));
+            var c = -(x1 * x1) - y1 * y1 - 2 * g * x1 - 2 * f * y1;
+
+            cx = -g;
+            cy = -f;
+            radiusSquared = cx * cx + cy * cy - c;
         }
 
         public bool Contains(double x, double y)

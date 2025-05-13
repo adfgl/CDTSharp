@@ -4,7 +4,7 @@
     {
         public const int NO_INDEX = -1;
 
-        public static void Bounds(IEnumerable<CDTVertex> vertices)
+        public static CDTRect Bounds(IEnumerable<CDTVertex> vertices)
         {
             double minX, minY, maxX, maxY;
             minX = minY = double.MaxValue;
@@ -19,6 +19,7 @@
                 if (x > maxX) maxX = x;
                 if (y > maxY) maxY = y;
             }
+            return new CDTRect(minX, minY, maxX, maxY);
         }
 
         public static List<CDTVertex> ExtractUnique(IEnumerable<CDTVertex> vertices, double eps = 1e-6)

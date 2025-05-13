@@ -5,41 +5,39 @@
     public struct CDTTriangle
     {
         public int index;
-        public int a, b, c;
-        public int abAdj, bcAdj, caAdj;
-        public bool abCon, bcCon, caCon;
+        public int vtx1, vtx2, vtx3;
+        public int adj12, adj23, adj31;
+        public bool con12, con23, con31;
 
         public CDTTriangle(int index, 
-            int a, int b, int c, 
-            int abAdj = NO_INDEX, int bcAdj = NO_INDEX, int caAdj = NO_INDEX)
+            int vtx1, int vtx2, int vtx3, 
+            int adj12 = NO_INDEX, int adj23 = NO_INDEX, int adj31 = NO_INDEX)
         {
             this.index = index;
 
-            this.a = a;
-            this.b = b;
-            this.c = c;
+            this.vtx1 = vtx1;
+            this.vtx2 = vtx2;
+            this.vtx3 = vtx3;
 
-            this.abAdj = abAdj;
-            this.bcAdj = bcAdj;
-            this.caAdj = caAdj;
+            this.adj12 = adj12;
+            this.adj23 = adj23;
+            this.adj31 = adj31;
         }
 
         public int IndexOf(int v)
         {
-            if (a == v) return 0;
-            if (b == v) return 1;
-            if (c == v) return 2;
+            if (vtx1 == v) return 0;
+            if (vtx2 == v) return 1;
+            if (vtx3 == v) return 2;
             return NO_INDEX;
         }
 
         public int IndexOf(int from, int to)
         {
-            if (a == from && b == to) return 0;
-            if (b == from && c == to) return 1;
-            if (c == from && a == to) return 2;
+            if (vtx1 == from && vtx2 == to) return 0;
+            if (vtx2 == from && vtx3 == to) return 1;
+            if (vtx3 == from && vtx1 == to) return 2;
             return NO_INDEX;
         }
     }
-
-
 }
