@@ -3,11 +3,11 @@ using Xunit.Sdk;
 
 namespace CDTSharpTests
 {
-    using static CDTGeometry;
+    using static CDT;
 
     public class GeometryTests
     {
-        static void TestCase(out List<Vec2> vertices, out List<Triangle> triangles)
+        static CDT TestCase()
         {
             /*
                5-------6------7
@@ -38,16 +38,18 @@ namespace CDTSharpTests
                 new Triangle(new Circle(), 7, 2, 4, NO_INDEX, 3, 5), // 7
                 ];
 
-            vertices = v;
-            triangles = t;
+            var cdt = new CDT();
+            cdt.Vertices.AddRange(v);
+            cdt.Triangles.AddRange(t);
+            return cdt;
         }
 
         [Fact]
         public void TriangleWalker_CorrectlyObtainsSurroundingTriangles_CW()
         {
-            TestCase(out List<Vec2> points, out List<Triangle> triangles);
+            CDT cdt = TestCase();
 
-            TriangleWalker walker = new TriangleWalker(triangles, 0, 3);
+            TriangleWalker walker = new TriangleWalker(cdt.Triangles, 0, 3);
 
             List<int> tris = [walker.Current];
             while (walker.MoveNextCCW())
@@ -65,9 +67,9 @@ namespace CDTSharpTests
         [Fact]
         public void TriangleWalker_CorrectlyObtainsSurroundingTriangles_CCW()
         {
-            TestCase(out List<Vec2> points, out List<Triangle> triangles);
+            CDT cdt = TestCase();
 
-            TriangleWalker walker = new TriangleWalker(triangles, 0, 3);
+            TriangleWalker walker = new TriangleWalker(cdt.Triangles, 0, 3);
 
             List<int> tris = [walker.Current];
             while (walker.MoveNextCW())
@@ -85,7 +87,7 @@ namespace CDTSharpTests
         [Fact]
         public void TriangleEdgeSplitCorrectly()
         {
-            TestCase(out List<Vec2> points, out List<Triangle> triangles);
+            CDT cdt = TestCase();
 
             /*
                 5-------6------7  >  5-------6-------7
@@ -99,15 +101,11 @@ namespace CDTSharpTests
                 0-------1------2  >  0-------1-------2
               */
 
-            int trisBefore = triangles.Count;
+            List<Triangle> triangles = cdt.Triangles;
 
-            int vi = points.Count;
-            points.Add(new Vec2(0, 0));
-            Stack<Edge> toLegalize = new Stack<Edge>();
-            SplitEdge(toLegalize, points, triangles, 0, triangles[0].IndexOf(4, 3), vi);
-
-            int trisAfter = triangles.Count;
-            Assert.Equal(2, trisAfter - trisBefore);
+            int vi = cdt.Vertices.Count;
+            cdt.Vertices.Add(new Vec2(0, 0));
+            cdt.SplitEdge(0, triangles[0].IndexOf(4, 3), vi);
 
             AssertHelper.Equal(new Triangle(new Circle(), 3, 6, vi, 4, 1, 9), triangles, 0);
             AssertHelper.Equal(new Triangle(new Circle(), 6, 4, vi, 5, 8, 0), triangles, 1);
@@ -122,10 +120,11 @@ namespace CDTSharpTests
             List<Triangle> triangles = [new Triangle(new Circle(), 0, 1, 2)];
 
             points.Add(new Vec2(0, 0));
-            Stack<Edge> toLegalize = new Stack<Edge>();
-            SplitTriangle(toLegalize, points, triangles, 0, points.Count - 1);
+            CDT cdt = new CDT();
+            cdt.Vertices.AddRange(points);
+            cdt.Triangles.AddRange(triangles);
 
-            Assert.Equal(3, triangles.Count);
+            cdt.SplitTriangle(0, points.Count - 1);
 
             AssertHelper.Equal(new Triangle(new Circle(), 0, 1, 3, NO_INDEX, 1, 2), triangles, 0);
             AssertHelper.Equal(new Triangle(new Circle(), 1, 2, 3, NO_INDEX, 2, 0), triangles, 1);
@@ -135,7 +134,7 @@ namespace CDTSharpTests
         [Fact]
         public void DiagonalSwapWorksCorrectly()
         {
-            TestCase(out List<Vec2> vertices, out List<Triangle> triangles);
+            CDT cdt = TestCase();
 
             /*
                   5-------6------7    >    5-------6------7
@@ -149,8 +148,9 @@ namespace CDTSharpTests
                   0-------1------2    >    0-------1------2
              */
 
-            Stack<Edge> toLegalize = new Stack<Edge>();
-            FlipEdge(toLegalize, vertices, triangles, 0, triangles[0].IndexOf(4, 3));
+            List<Triangle> triangles = cdt.Triangles;
+
+            cdt.FlipEdge(0, triangles[0].IndexOf(4, 3));
 
             AssertHelper.Equal(new Triangle(new Circle(), 1, 6, 4, 1, 5, 3), triangles, 0);
             AssertHelper.Equal(new Triangle(new Circle(), 6, 1, 3, 0, 2, 4), triangles, 1);

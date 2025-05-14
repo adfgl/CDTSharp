@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace CDTSharpTests
 {
-    using static CDTGeometry;
+    using static CDT;
     public static class AssertHelper
     {
         public static void Equal(Triangle expected, List<Triangle> tris, int index, string? message = null)

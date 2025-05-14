@@ -2,7 +2,7 @@
 {
     using System;
     using System.Runtime.CompilerServices;
-    using static CDTGeometry;
+    using static CDT;
 
     public struct Triangle
     {
