@@ -59,6 +59,46 @@ namespace CDTSharpTests
             }
         }
 
+        public static void AssertTwinSetCorrectly(List<Triangle> tris, int index)
+        {
+            Triangle tri = tris[index];
+            bool found = false;
+
+            for (int i = 0; i < 3; i++)
+            {
+                int a = tri.indices[i];
+                int b = tri.indices[(i + 1) % 3];
+
+                for (int j = 0; j < tris.Count; j++)
+                {
+                    if (index == j) continue;
+
+                    int oppEdge = tris[j].IndexOf(b, a); // reversed edge
+                    if (oppEdge != NO_INDEX)
+                    {
+                        found = true;
+
+                        // Check that tri.adjacent[i] points to j
+                        Assert.True(
+                            tri.adjacent[i] == j,
+                            $"Triangle[{index}].adjacent[{i}] should point to twin triangle {j} (shared edge {a}-{b})"
+                        );
+
+                        // Check that j's opposite edge points back to index
+                        Triangle twin = tris[j];
+                        Assert.True(
+                            twin.adjacent[oppEdge] == index,
+                            $"Twin triangle[{j}].adjacent[{oppEdge}] should point back to triangle {index} (shared edge {b}-{a})"
+                        );
+
+                        return; // found and verified
+                    }
+                }
+            }
+
+            Assert.True(found, $"Triangle[{index}] has no twin for any of its edges");
+        }
+
         [Fact]
         public void TriangleEdgeSplitCorrectly()
         {
@@ -128,6 +168,9 @@ namespace CDTSharpTests
 
             AssertTriangleEqual(new Triangle(new Circle(), 1, 6, 4, 1, 5, 3), triangles, 0);
             AssertTriangleEqual(new Triangle(new Circle(), 6, 1, 3, 0, 2, 4), triangles, 1);
+
+            AssertTwinSetCorrectly(triangles, 0);
+            AssertTwinSetCorrectly(triangles, 1);
 
             Triangle t5 = triangles[5];
             Assert.Equal(0, t5.adjacent[t5.IndexOf(4, 6)]);

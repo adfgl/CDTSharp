@@ -359,5 +359,50 @@ namespace CDTSharp
                 }
             }
         }
+
+        public static bool ShouldFlip(List<Vec2> vertices, List<Triangle> triangles, int triangleIndex, int edgeIndex)
+        {
+            /*
+                          v1            
+                          /\            
+                         /  \           
+                        /    \          
+                   e01 /      \ e12     
+                      /   t0   \        
+                     /          \       
+                    /    e20     \      
+                v0 +--------------+ v2  
+                    \     e02    /      
+                     \          /       
+                      \   t1   /        
+                   e30 \      / e23     
+                        \    /          
+                         \  /           
+                          \/            
+                          v3            
+            */
+
+            int e20 = edgeIndex;
+            int t0Index = triangleIndex;
+            Triangle t0 = triangles[t0Index];
+            if (t0Index == NO_INDEX || t0.constraints[e20])
+            {
+                return false;
+            }
+
+            int i0 = t0.indices[Triangle.NEXT3[e20]];
+            int i1 = t0.indices[Triangle.PREV3[e20]];
+            int i2 = t0.indices[e20];
+
+            int t1Index = t0.adjacent[e20];
+            Triangle t1 = triangles[t1Index];
+
+            int i3 = t1.indices[Triangle.PREV3[t1.IndexOf(i0, i2)]];
+
+            Vec2 v3 = vertices[i3];
+            return 
+                t0.circle.Contains(v3.x, v3.y) && 
+                ConvexQuad(vertices[i0], vertices[i1], vertices[i2], v3);
+        }
     }
 }
