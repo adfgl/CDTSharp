@@ -1,5 +1,6 @@
 ﻿namespace CDTSharp
 {
+    using System;
     using System.Runtime.CompilerServices;
     using static CDTGeometry;
 
@@ -48,6 +49,11 @@
                 }
             }
             return NO_INDEX;
+        }
+
+        public override string ToString()
+        {
+            return $"{String.Join(' ', indices.Select(i => i))} ({String.Join(' ', adjacent)})";
         }
     }
 }

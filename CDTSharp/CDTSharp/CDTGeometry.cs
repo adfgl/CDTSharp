@@ -117,40 +117,118 @@ namespace CDTSharp
                         v3                          v3            
             */
 
-            //int lastTriangle = triangles.Count;
-            //Triangle t0 = triangles[triangleIndex];
-            //int t1Index = t0.GetAdjacent(edgeIndex);
-            //Triangle t1 = triangles[t1Index];
+            int e20 = edgeIndex;
+            int t0Index = triangleIndex;
+            Triangle t0 = triangles[t0Index];
 
-            //(int v, int e, bool c) e20, e01, e12, e23, e30;
-            //e20 = t0.GetEdge(edgeIndex);
-            //e01 = t0.GetEdge((edgeIndex + 1) % 3);
-            //e12 = t0.GetEdge((edgeIndex + 2) % 3);
+            int i0 = t0.indices[Triangle.NEXT3[e20]];
+            int i1 = t0.indices[Triangle.PREV3[e20]];
+            int i2 = t0.indices[e20];
 
-            //int adjEdgeIndex = t1.IndexOf(e01.v, e20.v);
-            //e23 = t1.GetEdge((adjEdgeIndex + 1) % 3);
-            //e30 = t1.GetEdge((edgeIndex + 2) % 3);
+            int t1Index = t0.adjacent[e20];
+            Triangle t1 = triangles[t1Index];
 
+            int e02 = t1.IndexOf(i0, i2);
+            int i3 = t1.indices[Triangle.PREV3[e02]];
 
-            //int[] triIndices = [triangleIndex, t1Index, lastTriangle, lastTriangle + 1];
-            //(int v, int e, bool c)[] edges = [e01, e12, e23, e30];
-            //for (int curr = 0; curr < 4; curr++)
-            //{
-            //    int next = (curr + 1) % 4;
+            int t2Index = triangles.Count;
+            int t3Index = t2Index + 1;
 
-            //    Triangle tri = new Triangle(edges[curr].v, edges[next].v, vertexIndex);
+            bool e20Constrained = t0.constraints[e20];
 
+            Vec2 v0 = vertices[vertexIndex];
+            for (int curr = 0; curr < 4; curr++)
+            {
+                int ai, bi, ti;
+                int adj0, adj1, adj2;
+                bool con0, con1, con2;
+                switch (curr)
+                {
+                    case 0:
+                        int e01 = Triangle.NEXT3[e20];
+                        ai = i0;
+                        bi = i1;
 
-            //    if (curr < 2)
-            //    {
-            //        triangles[triIndices[curr]] = tri;
-            //    }
-            //    else
-            //    {
-            //        triangles.Add(tri);
-            //    }
-            //}
+                        ti = t0Index;
 
+                        adj0 = t0.adjacent[e01];
+                        adj1 = t1Index;
+                        adj2 = t3Index;
+
+                        con0 = t0.constraints[e01];
+                        con1 = false;
+                        con2 = e20Constrained;
+                        break;
+                    case 1:
+                        int e12 = Triangle.PREV3[e20];
+                        ai = i1;
+                        bi = i2;
+
+                        ti = t1Index;
+
+                        adj0 = t0.adjacent[e12];
+                        adj1 = t2Index;
+                        adj2 = t0Index;
+
+                        con0 = t0.constraints[e12];
+                        con1 = e20Constrained;
+                        con2 = false;
+                        break;
+                    case 2:
+                        int e23 = Triangle.NEXT3[e02];
+                        ai = i2; 
+                        bi = i3;
+
+                        ti = t2Index;
+
+                        adj0 = t1.adjacent[e23];
+                        adj1 = t3Index;
+                        adj2 = t1Index;
+
+                        con0 = t1.constraints[e23];
+                        con1 = false;
+                        con2 = e20Constrained;
+                        break;
+                    case 3:
+                        int e30 = Triangle.PREV3[e02];
+                        ai = i3;
+                        bi = i0;
+
+                        ti = t3Index;
+
+                        adj0 = t1.adjacent[e30];
+                        adj1 = t0Index;
+                        adj2 = t2Index;
+
+                        con0 = t1.constraints[e30];
+                        con1 = e20Constrained;
+                        con2 = false;
+                        break;
+                    default:
+                        throw new InvalidOperationException();
+                }
+
+                Triangle tri = new Triangle(
+                    new Circle(v0, vertices[ai], vertices[bi]),
+                    ai, bi, vertexIndex,
+                    adj0, adj1, adj2,
+                    con0, con1, con2);
+
+                if (adj0 != NO_INDEX)
+                {
+                    Triangle adjTri = triangles[adj0];
+                    adjTri.adjacent[adjTri.IndexOf(bi, ai)] = ti;
+                }
+
+                if (curr < 2)
+                {
+                    triangles[ti] = tri;
+                }
+                else
+                {
+                    triangles.Add(tri);
+                }
+            }
         }
 
         public static void FlipEdge(List<Vec2> vertices, List<Triangle> triangles, int triangleIndex, int edgeIndex)
@@ -201,7 +279,6 @@ namespace CDTSharp
                 i3, i1, i2,
                 t1Index, t0.adjacent[e12], t1.adjacent[e23],
                 false, t0.constraints[e12], t1.constraints[e23]);
-
 
             adjIndex = t0.adjacent[e12];
             if (adjIndex != NO_INDEX)

@@ -7,53 +7,14 @@ namespace CDTSharpTests
 
     public class GeometryTests
     {
-        [Fact]
-        public void TriangleSplitCenterSplitWorksCorrectlyWithNoNeighbours()
-        {
-            List<Vec2> points = [new Vec2(-100, -100), new Vec2(0, 100), new Vec2(100, -100)];
-            List<Triangle> triangles = [new Triangle(new Circle(), 0, 1, 2)];
-
-            points.Add(new Vec2(0, 0));
-            SplitTriangle(points, triangles, 0, points.Count - 1);
-
-            Assert.Equal(3, triangles.Count);
-
-            Triangle t0 = triangles[0];
-            Assert.Equal(0, t0.indices[0]);
-            Assert.Equal(1, t0.indices[1]);
-            Assert.Equal(3, t0.indices[2]);
-
-            Assert.Equal(NO_INDEX, t0.adjacent[0]);
-            Assert.Equal(1, t0.adjacent[1]);
-            Assert.Equal(2, t0.adjacent[2]);
-
-            Triangle t1 = triangles[1];
-            Assert.Equal(1, t1.indices[0]);
-            Assert.Equal(2, t1.indices[1]);
-            Assert.Equal(3, t1.indices[2]);
-
-            Assert.Equal(NO_INDEX, t1.adjacent[0]);
-            Assert.Equal(2, t1.adjacent[1]);
-            Assert.Equal(0, t1.adjacent[2]);
-
-            Triangle t2 = triangles[2];
-            Assert.Equal(2, t2.indices[0]);
-            Assert.Equal(0, t2.indices[1]);
-            Assert.Equal(3, t2.indices[2]);
-
-            Assert.Equal(NO_INDEX, t2.adjacent[0]);
-            Assert.Equal(0, t2.adjacent[1]);
-            Assert.Equal(1, t2.adjacent[2]);
-        }
-
-        static void DiagonalSwapTestCase(out List<Vec2> vertices, out List<Triangle> triangles)
+        static void TestCase(out List<Vec2> vertices, out List<Triangle> triangles)
         {
             /*
                5-------6------7
                |\  4  /\   5 /|
                | \   /  \   / |
                |  \ /  0 \ /  |
-               | 7 3------4  8|
+               | 6 3------4  7|
                |  / \  1 / \  |
                | /   \  /   \ |
                |/  2  \/   3 \|
@@ -73,23 +34,90 @@ namespace CDTSharpTests
                 new Triangle(new Circle(), 4, 2, 1, 8, NO_INDEX, 1), // 3
                 new Triangle(new Circle(), 5, 6, 3, NO_INDEX, 0, 7), // 4
                 new Triangle(new Circle(), 7, 4, 6, 8, 0, NO_INDEX), // 5
+                new Triangle(new Circle(), 5, 3, 0, 2, 2, NO_INDEX), // 6
+                new Triangle(new Circle(), 7, 2, 4, NO_INDEX, 3, 5), // 7
                 ];
 
             vertices = v;
             triangles = t;
         }
 
+        public static void AssertTriangleEqual(Triangle expected, List<Triangle> tris, int index, string? message = null)
+        {
+            for (int i = 0; i < 3; i++)
+            {
+                var actual = tris[index];
+                 Assert.True(
+                      expected.indices[i] == actual.indices[i],
+                      $"Triangle[{index}].indices[{i}] not equal: expected {expected.indices[i]}, actual {actual.indices[i]}"
+                  );
+
+                Assert.True(
+                    expected.adjacent[i] == actual.adjacent[i],
+                    $"Triangle[{index}].adjacent[{i}] not equal: expected {expected.adjacent[i]}, actual {actual.adjacent[i]}"
+                );
+            }
+        }
+
+        [Fact]
+        public void TriangleEdgeSplitCorrectly()
+        {
+            TestCase(out List<Vec2> points, out List<Triangle> triangles);
+
+            /*
+                5-------6------7  >  5-------6-------7
+                |\  4  /\   5 /|  >  |\  4  /|\   5 /|
+                | \   /  \   / |  >  | \   / | \   / |
+                |  \ /  0 \ /  |  >  |  \ / 0|1 \ /  |
+                | 6 3------4  7|  >  | 6 3---+---4  7|
+                |  / \  1 / \  |  >  |  / \ 9|8 / \  |
+                | /   \  /   \ |  >  | /   \ | /   \ |
+                |/  2  \/   3 \|  >  |/  2  \|/   3 \|
+                0-------1------2  >  0-------1-------2
+              */
+
+            int trisBefore = triangles.Count;
+
+            int vi = points.Count;
+            points.Add(new Vec2(0, 0));
+            SplitEdge(points, triangles, 0, triangles[0].IndexOf(4, 3), vi);
+
+            int trisAfter = triangles.Count;
+            Assert.Equal(2, trisAfter - trisBefore);
+
+            AssertTriangleEqual(new Triangle(new Circle(), 3, 6, vi, 4, 1, 9), triangles, 0);
+            AssertTriangleEqual(new Triangle(new Circle(), 6, 4, vi, 5, 8, 0), triangles, 1);
+            AssertTriangleEqual(new Triangle(new Circle(), 4, 1, vi, 3, 9, 1), triangles, 8);
+            AssertTriangleEqual(new Triangle(new Circle(), 1, 3, vi, 2, 0, 8), triangles, 9);
+        }
+
+        [Fact]
+        public void TriangleSplitCenterSplitWorksCorrectlyWithNoNeighbours()
+        {
+            List<Vec2> points = [new Vec2(-100, -100), new Vec2(0, 100), new Vec2(100, -100)];
+            List<Triangle> triangles = [new Triangle(new Circle(), 0, 1, 2)];
+
+            points.Add(new Vec2(0, 0));
+            SplitTriangle(points, triangles, 0, points.Count - 1);
+
+            Assert.Equal(3, triangles.Count);
+
+            AssertTriangleEqual(new Triangle(new Circle(), 0, 1, 3, NO_INDEX, 1, 2), triangles, 0);
+            AssertTriangleEqual(new Triangle(new Circle(), 1, 2, 3, NO_INDEX, 2, 0), triangles, 1);
+            AssertTriangleEqual(new Triangle(new Circle(), 2, 0, 3, NO_INDEX, 0, 1), triangles, 2);
+        }
+
         [Fact]
         public void DiagonalSwapWorksCorrectly()
         {
-            DiagonalSwapTestCase(out List<Vec2> vertices, out List<Triangle> triangles);
+            TestCase(out List<Vec2> vertices, out List<Triangle> triangles);
 
             /*
                   5-------6------7    >    5-------6------7
                   |\  4  /\   5 /|    >    |\  4  /|\   5 /|
                   | \   /  \   / |    >    | \   / | \   / |
                   |  \ /  0 \ /  |    >    |  \ /  |  \ /  |
-                  | 7 3------4  8|    >    | 7 3 1 | 0 4  8|
+                  | 6 3------4  7|    >    | 6 3 1 | 0 4  7|
                   |  / \  1 / \  |    >    |  / \  |  / \  |
                   | /   \  /   \ |    >    | /   \ | /   \ |
                   |/  2  \/   3 \|    >    |/  2  \|/   3 \|
@@ -98,23 +126,8 @@ namespace CDTSharpTests
 
             FlipEdge(vertices, triangles, 0, triangles[0].IndexOf(4, 3));
 
-            Triangle t0 = triangles[0];
-            Assert.Equal(1, t0.indices[0]);
-            Assert.Equal(6, t0.indices[1]);
-            Assert.Equal(4, t0.indices[2]);
-
-            Assert.Equal(1, t0.adjacent[0]);
-            Assert.Equal(5, t0.adjacent[1]);
-            Assert.Equal(3, t0.adjacent[2]);
-
-            Triangle t1 = triangles[1];
-            Assert.Equal(6, t1.indices[0]);
-            Assert.Equal(1, t1.indices[1]);
-            Assert.Equal(3, t1.indices[2]);
-
-            Assert.Equal(0, t1.adjacent[0]);
-            Assert.Equal(2, t1.adjacent[1]);
-            Assert.Equal(4, t1.adjacent[2]);
+            AssertTriangleEqual(new Triangle(new Circle(), 1, 6, 4, 1, 5, 3), triangles, 0);
+            AssertTriangleEqual(new Triangle(new Circle(), 6, 1, 3, 0, 2, 4), triangles, 1);
 
             Triangle t5 = triangles[5];
             Assert.Equal(0, t5.adjacent[t5.IndexOf(4, 6)]);
