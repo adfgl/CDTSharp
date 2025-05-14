@@ -205,5 +205,26 @@ namespace CDTSharpTests
             Assert.Equal(q1.x, inter.x);
             Assert.Equal(q1.y, inter.y);
         }
+
+        [Fact]
+        public void OnSegment_InTheCenter()
+        {
+            Vec2 start = new Vec2(0, 0), end = new Vec2(0, 50);
+            Assert.True(OnSegment(new Vec2(0, 25), start, end));
+        }
+
+        [Fact]
+        public void OnSegment_OnStart()
+        {
+            Vec2 start = new Vec2(0, 0), end = new Vec2(0, 50);
+            Assert.True(OnSegment(start, start, end));
+        }
+
+        [Fact]
+        public void OnSegment_OnEnd()
+        {
+            Vec2 start = new Vec2(0, 0), end = new Vec2(0, 50);
+            Assert.True(OnSegment(end, start, end));
+        }
     }
 }

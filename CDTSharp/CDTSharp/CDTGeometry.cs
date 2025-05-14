@@ -28,7 +28,7 @@ namespace CDTSharp
             double c = p2.y - p1.y, d = q1.y - q2.y;
 
             double det = a * d - b * c;
-            if (det == 0)
+            if (Math.Abs(det) < 1e-12)
             {
                 return Vec2.NaN;
             }
@@ -37,11 +37,20 @@ namespace CDTSharp
 
             double u = (e * d - b * f) / det;
             double v = (a * f - e * c) / det;
-
             if (u < 0 || u > 1 || v < 0 || v > 1)
-                return Vec2.NaN; 
-
+            {
+                return Vec2.NaN;
+            }
             return new Vec2(p1.x + u * a, p1.y + u * c);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool OnSegment(Vec2 pt, Vec2 start, Vec2 end, double tolerance = 0)
+        {
+            double dx1 = end.x - start.x;
+            double dy1 = end.y - start.y;
+            double dot = dx1 * (pt.x - start.x) + dy1 * (pt.y - start.y);
+            return dot >= -tolerance && dot <= dx1 * dx1 + dy1 * dy1 + tolerance;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
