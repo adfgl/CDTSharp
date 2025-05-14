@@ -6,7 +6,7 @@
 
     public readonly struct Triangle
     {
-        public readonly static int[] NEXT3 = [1, 2, 0], PREV3 = [2, 0, 1];
+        public readonly static int[] NEXT = [1, 2, 0], PREV = [2, 0, 1];
 
         public readonly Circle circle;
         public readonly int[] indices, adjacent;
@@ -27,11 +27,20 @@
             this.hole = hole;
         }
 
+        public int IndexOf(int v)
+        {
+            for (int i = 0; i < 3; i++)
+            {
+                if (indices[i] == v) return i;
+            }
+            return NO_INDEX;
+        }
+
         public int IndexOf(int from, int to)
         {
             for (int i = 0; i < 3; i++)
             {
-                if (indices[i] == from && indices[NEXT3[i]] == to)
+                if (indices[i] == from && indices[NEXT[i]] == to)
                 {
                     return i;
                 }
@@ -43,7 +52,7 @@
         {
             for (int i = 0; i < 3; i++)
             {
-                if (indices[i] == from && (indices[NEXT3[i]] == to || indices[PREV3[i]] == to))
+                if (indices[i] == from && (indices[NEXT[i]] == to || indices[PREV[i]] == to))
                 {
                     return i;
                 }

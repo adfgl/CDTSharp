@@ -30,11 +30,11 @@ namespace CDTSharpTests
             List<Triangle> t = [
                 new Triangle(new Circle(), 3, 6, 4, 4, 5, 1),   // 0
                 new Triangle(new Circle(), 1, 3, 4, 2, 0, 3),   // 1
-                new Triangle(new Circle(), 1, 0, 3, NO_INDEX, 7, 1), // 2
-                new Triangle(new Circle(), 4, 2, 1, 8, NO_INDEX, 1), // 3
-                new Triangle(new Circle(), 5, 6, 3, NO_INDEX, 0, 7), // 4
-                new Triangle(new Circle(), 7, 4, 6, 8, 0, NO_INDEX), // 5
-                new Triangle(new Circle(), 5, 3, 0, 2, 2, NO_INDEX), // 6
+                new Triangle(new Circle(), 1, 0, 3, NO_INDEX, 6, 1), // 2
+                new Triangle(new Circle(), 4, 2, 1, 7, NO_INDEX, 1), // 3
+                new Triangle(new Circle(), 5, 6, 3, NO_INDEX, 0, 6), // 4
+                new Triangle(new Circle(), 7, 4, 6, 7, 0, NO_INDEX), // 5
+                new Triangle(new Circle(), 5, 3, 0, 4, 2, NO_INDEX), // 6
                 new Triangle(new Circle(), 7, 2, 4, NO_INDEX, 3, 5), // 7
                 ];
 
@@ -42,61 +42,44 @@ namespace CDTSharpTests
             triangles = t;
         }
 
-        public static void AssertTriangleEqual(Triangle expected, List<Triangle> tris, int index, string? message = null)
+        [Fact]
+        public void TriangleWalker_CorrectlyObtainsSurroundingTriangles_CW()
         {
-            for (int i = 0; i < 3; i++)
-            {
-                var actual = tris[index];
-                 Assert.True(
-                      expected.indices[i] == actual.indices[i],
-                      $"Triangle[{index}].indices[{i}] not equal: expected {expected.indices[i]}, actual {actual.indices[i]}"
-                  );
+            TestCase(out List<Vec2> points, out List<Triangle> triangles);
 
-                Assert.True(
-                    expected.adjacent[i] == actual.adjacent[i],
-                    $"Triangle[{index}].adjacent[{i}] not equal: expected {expected.adjacent[i]}, actual {actual.adjacent[i]}"
-                );
+            TriangleWalker walker = new TriangleWalker(triangles, 0, 3);
+
+            List<int> tris = [walker.Current];
+            while (walker.MoveNextCCW())
+            {
+                tris.Add(walker.Current);
+            }
+
+            int[] expected = [0, 4, 6, 2, 1];
+            for (int i = 0; i < expected.Length; i++)
+            {
+                Assert.Equal(expected[i], tris[i]);
             }
         }
 
-        public static void AssertTwinSetCorrectly(List<Triangle> tris, int index)
+        [Fact]
+        public void TriangleWalker_CorrectlyObtainsSurroundingTriangles_CCW()
         {
-            Triangle tri = tris[index];
-            bool found = false;
+            TestCase(out List<Vec2> points, out List<Triangle> triangles);
 
-            for (int i = 0; i < 3; i++)
+            TriangleWalker walker = new TriangleWalker(triangles, 0, 3);
+
+            List<int> tris = [walker.Current];
+            while (walker.MoveNextCW())
             {
-                int a = tri.indices[i];
-                int b = tri.indices[(i + 1) % 3];
-
-                for (int j = 0; j < tris.Count; j++)
-                {
-                    if (index == j) continue;
-
-                    int oppEdge = tris[j].IndexOf(b, a); // reversed edge
-                    if (oppEdge != NO_INDEX)
-                    {
-                        found = true;
-
-                        // Check that tri.adjacent[i] points to j
-                        Assert.True(
-                            tri.adjacent[i] == j,
-                            $"Triangle[{index}].adjacent[{i}] should point to twin triangle {j} (shared edge {a}-{b})"
-                        );
-
-                        // Check that j's opposite edge points back to index
-                        Triangle twin = tris[j];
-                        Assert.True(
-                            twin.adjacent[oppEdge] == index,
-                            $"Twin triangle[{j}].adjacent[{oppEdge}] should point back to triangle {index} (shared edge {b}-{a})"
-                        );
-
-                        return; // found and verified
-                    }
-                }
+                tris.Add(walker.Current);
             }
 
-            Assert.True(found, $"Triangle[{index}] has no twin for any of its edges");
+            int[] expected = [0, 1, 2, 6, 4];
+            for (int i = 0; i < expected.Length; i++)
+            {
+                Assert.Equal(expected[i], tris[i]);
+            }
         }
 
         [Fact]
@@ -125,10 +108,10 @@ namespace CDTSharpTests
             int trisAfter = triangles.Count;
             Assert.Equal(2, trisAfter - trisBefore);
 
-            AssertTriangleEqual(new Triangle(new Circle(), 3, 6, vi, 4, 1, 9), triangles, 0);
-            AssertTriangleEqual(new Triangle(new Circle(), 6, 4, vi, 5, 8, 0), triangles, 1);
-            AssertTriangleEqual(new Triangle(new Circle(), 4, 1, vi, 3, 9, 1), triangles, 8);
-            AssertTriangleEqual(new Triangle(new Circle(), 1, 3, vi, 2, 0, 8), triangles, 9);
+            AssertHelper.Equal(new Triangle(new Circle(), 3, 6, vi, 4, 1, 9), triangles, 0);
+            AssertHelper.Equal(new Triangle(new Circle(), 6, 4, vi, 5, 8, 0), triangles, 1);
+            AssertHelper.Equal(new Triangle(new Circle(), 4, 1, vi, 3, 9, 1), triangles, 8);
+            AssertHelper.Equal(new Triangle(new Circle(), 1, 3, vi, 2, 0, 8), triangles, 9);
         }
 
         [Fact]
@@ -142,9 +125,9 @@ namespace CDTSharpTests
 
             Assert.Equal(3, triangles.Count);
 
-            AssertTriangleEqual(new Triangle(new Circle(), 0, 1, 3, NO_INDEX, 1, 2), triangles, 0);
-            AssertTriangleEqual(new Triangle(new Circle(), 1, 2, 3, NO_INDEX, 2, 0), triangles, 1);
-            AssertTriangleEqual(new Triangle(new Circle(), 2, 0, 3, NO_INDEX, 0, 1), triangles, 2);
+            AssertHelper.Equal(new Triangle(new Circle(), 0, 1, 3, NO_INDEX, 1, 2), triangles, 0);
+            AssertHelper.Equal(new Triangle(new Circle(), 1, 2, 3, NO_INDEX, 2, 0), triangles, 1);
+            AssertHelper.Equal(new Triangle(new Circle(), 2, 0, 3, NO_INDEX, 0, 1), triangles, 2);
         }
 
         [Fact]
@@ -166,12 +149,9 @@ namespace CDTSharpTests
 
             FlipEdge(vertices, triangles, 0, triangles[0].IndexOf(4, 3));
 
-            AssertTriangleEqual(new Triangle(new Circle(), 1, 6, 4, 1, 5, 3), triangles, 0);
-            AssertTriangleEqual(new Triangle(new Circle(), 6, 1, 3, 0, 2, 4), triangles, 1);
-
-            AssertTwinSetCorrectly(triangles, 0);
-            AssertTwinSetCorrectly(triangles, 1);
-
+            AssertHelper.Equal(new Triangle(new Circle(), 1, 6, 4, 1, 5, 3), triangles, 0);
+            AssertHelper.Equal(new Triangle(new Circle(), 6, 1, 3, 0, 2, 4), triangles, 1);
+                
             Triangle t5 = triangles[5];
             Assert.Equal(0, t5.adjacent[t5.IndexOf(4, 6)]);
 

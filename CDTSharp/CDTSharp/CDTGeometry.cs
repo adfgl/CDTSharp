@@ -121,15 +121,15 @@ namespace CDTSharp
             int t0Index = triangleIndex;
             Triangle t0 = triangles[t0Index];
 
-            int i0 = t0.indices[Triangle.NEXT3[e20]];
-            int i1 = t0.indices[Triangle.PREV3[e20]];
+            int i0 = t0.indices[Triangle.NEXT[e20]];
+            int i1 = t0.indices[Triangle.PREV[e20]];
             int i2 = t0.indices[e20];
 
             int t1Index = t0.adjacent[e20];
             Triangle t1 = triangles[t1Index];
 
             int e02 = t1.IndexOf(i0, i2);
-            int i3 = t1.indices[Triangle.PREV3[e02]];
+            int i3 = t1.indices[Triangle.PREV[e02]];
 
             int t2Index = triangles.Count;
             int t3Index = t2Index + 1;
@@ -145,7 +145,7 @@ namespace CDTSharp
                 switch (curr)
                 {
                     case 0:
-                        int e01 = Triangle.NEXT3[e20];
+                        int e01 = Triangle.NEXT[e20];
                         ai = i0;
                         bi = i1;
 
@@ -160,7 +160,7 @@ namespace CDTSharp
                         con2 = e20Constrained;
                         break;
                     case 1:
-                        int e12 = Triangle.PREV3[e20];
+                        int e12 = Triangle.PREV[e20];
                         ai = i1;
                         bi = i2;
 
@@ -175,7 +175,7 @@ namespace CDTSharp
                         con2 = false;
                         break;
                     case 2:
-                        int e23 = Triangle.NEXT3[e02];
+                        int e23 = Triangle.NEXT[e02];
                         ai = i2; 
                         bi = i3;
 
@@ -190,7 +190,7 @@ namespace CDTSharp
                         con2 = e20Constrained;
                         break;
                     case 3:
-                        int e30 = Triangle.PREV3[e02];
+                        int e30 = Triangle.PREV[e02];
                         ai = i3;
                         bi = i0;
 
@@ -257,20 +257,20 @@ namespace CDTSharp
             int t0Index = triangleIndex;
             Triangle t0 = triangles[t0Index];
 
-            int i0 = t0.indices[Triangle.NEXT3[e20]];
-            int i1 = t0.indices[Triangle.PREV3[e20]];
+            int i0 = t0.indices[Triangle.NEXT[e20]];
+            int i1 = t0.indices[Triangle.PREV[e20]];
             int i2 = t0.indices[e20];
 
             int t1Index = t0.adjacent[e20];
             Triangle t1 = triangles[t1Index];
 
             int e02 = t1.IndexOf(i0, i2);
-            int i3 = t1.indices[Triangle.PREV3[e02]];
+            int i3 = t1.indices[Triangle.PREV[e02]];
 
-            int e01 = Triangle.NEXT3[e20];
-            int e12 = Triangle.PREV3[e20];
-            int e23 = Triangle.NEXT3[e02];
-            int e30 = Triangle.PREV3[e02];
+            int e01 = Triangle.NEXT[e20];
+            int e12 = Triangle.PREV[e20];
+            int e23 = Triangle.NEXT[e02];
+            int e30 = Triangle.PREV[e02];
 
             int adjIndex;
 
@@ -327,8 +327,8 @@ namespace CDTSharp
             Vec2 v0 = vertices[vertexIndex];
             for (int curr = 0; curr < 3; curr++)
             {
-                int next = Triangle.NEXT3[curr];
-                int prev = Triangle.PREV3[curr];
+                int next = Triangle.NEXT[curr];
+                int prev = Triangle.PREV[curr];
 
                 int i1 = t.indices[curr];
                 int i2 = t.indices[next];
@@ -390,14 +390,14 @@ namespace CDTSharp
                 return false;
             }
 
-            int i0 = t0.indices[Triangle.NEXT3[e20]];
-            int i1 = t0.indices[Triangle.PREV3[e20]];
+            int i0 = t0.indices[Triangle.NEXT[e20]];
+            int i1 = t0.indices[Triangle.PREV[e20]];
             int i2 = t0.indices[e20];
 
             int t1Index = t0.adjacent[e20];
             Triangle t1 = triangles[t1Index];
 
-            int i3 = t1.indices[Triangle.PREV3[t1.IndexOf(i0, i2)]];
+            int i3 = t1.indices[Triangle.PREV[t1.IndexOf(i0, i2)]];
 
             Vec2 v3 = vertices[i3];
             return 
