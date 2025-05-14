@@ -3,46 +3,59 @@
     using System.Runtime.CompilerServices;
     using static CDTGeometry;
 
-    public readonly struct Triangle
+    public struct Triangle
     {
-        public readonly int[] indices, adjacent;
-        public readonly bool[] constraint;
-        public readonly double ccX, ccY, rSqr;
+        public int parent;
+        public readonly int v0, v1, v2;
+        public int adj0, adj1, adj2;
+        public bool con0, con1, con2;
+        public bool hole;
 
-        public Triangle(double ccX, double ccY, double rSqr, int vtx1, int vtx2, int vtx3, int adj12 = NO_INDEX, int adj23 = NO_INDEX, int adj31 = NO_INDEX)
+        public Triangle(
+            int v0, int v1, int v2,
+            int adj0 = NO_INDEX, int adj1 = NO_INDEX, int adj2 = NO_INDEX,
+            bool con0 = false, bool con1 = false, bool con2 = false,
+            bool hole = false)
         {
-            this.ccX = ccX;
-            this.ccY = ccY;
-            this.rSqr = rSqr;
-
-            this.indices = [vtx1, vtx2, vtx3];
-            this.adjacent = [adj12, adj23, adj31];
-            this.constraint = [false, false, false];
+            this.v0 = v0; this.v1 = v1; this.v2 = v2;
+            this.adj0 = adj0; this.adj1 = adj1; this.adj2 = adj2;
+            this.con0 = con0; this.con1 = con1; this.con2 = con2;
+            this.hole = hole;
         }
 
-        public int IndexOf(int v)
+        public int GetVertex(int i) => i switch { 0 => v0, 1 => v1, 2 => v2, _ => throw new ArgumentOutOfRangeException() };
+        public int GetAdjacent(int i) => i switch { 0 => adj0, 1 => adj1, 2 => adj2, _ => throw new ArgumentOutOfRangeException() };
+        public bool GetConstraint(int i) => i switch { 0 => con0, 1 => con1, 2 => con2, _ => throw new ArgumentOutOfRangeException() };
+
+        public (int v, int e, bool c) GetEdge(int i)
         {
-            for (int i = 0; i < 3; i++)
+            switch (i)
             {
-                if (this.indices[i] == v) return i;
+                case 0: return (v0, adj0, con0);
+                case 1: return (v1, adj1, con1);
+                case 2: return (v2, adj2, con2);
+                default:
+                    throw new ArgumentOutOfRangeException();
             }
-            return NO_INDEX;
+        }
+
+        public void SetAdjacent(int i, int value)
+        {
+            switch (i)
+            {
+                case 0: adj0 = value; break;
+                case 1: adj1 = value; break;
+                case 2: adj2 = value; break;
+                default: throw new ArgumentOutOfRangeException();
+            }
         }
 
         public int IndexOf(int from, int to)
         {
-            for (int i = 0; i < 3; i++)
-            {
-                if (from == indices[i] && to == indices[(i + 1) % 3]) return i;
-            }
+            if (v0 == from && v1 == to) return 0;
+            if (v1 == from && v2 == to) return 1;
+            if (v2 == from && v0 == to) return 2;
             return NO_INDEX;
-        }
-
-        public bool CircumCircleContains(double x, double y)
-        {
-            double dx = x - ccX;
-            double dy = y - ccY;
-            return dx * dx + dy * dy <= rSqr;
         }
     }
 }
