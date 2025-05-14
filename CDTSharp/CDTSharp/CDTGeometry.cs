@@ -1,12 +1,22 @@
-﻿using System;
-using System.Numerics;
-using static System.Net.Mime.MediaTypeNames;
+﻿using System.Runtime.CompilerServices;
 
 namespace CDTSharp
 {
     public static class CDTGeometry
     {
         public const int NO_INDEX = -1;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool ConvexQuad(Vec2 a, Vec2 b, Vec2 c, Vec2 d)
+        {
+            return SameSide(a, b, c, d) && SameSide(d, c, b, a);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        static bool SameSide(Vec2 a, Vec2 b, Vec2 c, Vec2 d)
+        {
+            return Vec2.Cross(a, b, c) * Vec2.Cross(c, d, a) >= 0;
+        }
 
         public static List<Vec2> ExtractUnique(IEnumerable<Vec2> vertices, double eps = 1e-6)
         {

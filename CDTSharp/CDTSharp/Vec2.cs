@@ -52,6 +52,14 @@ namespace CDTSharp
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static double Cross(Vec2 a, Vec2 b) => a.x * b.y - a.y * b.x;
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static double Cross(Vec2 a, Vec2 b, Vec2 c)
+        {
+            double abx = b.x - a.x, aby = b.y - a.y;
+            double acx = c.x - a.x, acy = c.y - a.y;
+            return abx * acy - aby * acx;
+        }
+
         public double this[int index]
         {
             get

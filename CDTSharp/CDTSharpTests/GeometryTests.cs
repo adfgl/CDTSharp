@@ -128,5 +128,27 @@ namespace CDTSharpTests
             Triangle t2 = triangles[2];
             Assert.Equal(1, t2.adjacent[t2.IndexOf(3, 1)]);
         }
+
+        [Fact]
+        public void QuadIsConvex_ReturnsTrueWhenTrulyConvex()
+        {
+            Vec2 v0 = new Vec2(-1, 0);
+            Vec2 v1 = new Vec2(0, +1);
+            Vec2 v2 = new Vec2(+1, 0);
+            Vec2 v3 = new Vec2(0, -1);
+
+            Assert.True(ConvexQuad(v0, v1, v2, v3));
+        }
+
+        [Fact]
+        public void QuadIsConvex_ReturnsFalseWhenToConvex()
+        {
+            Vec2 v0 = new Vec2(-1, 0);
+            Vec2 v1 = new Vec2(0, +1);
+            Vec2 v2 = new Vec2(-0.75, 0);
+            Vec2 v3 = new Vec2(0, -1);
+
+            Assert.False(ConvexQuad(v0, v1, v2, v3));
+        }
     }
 }
