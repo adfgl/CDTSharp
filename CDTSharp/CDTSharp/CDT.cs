@@ -1,5 +1,6 @@
 ﻿namespace CDTSharp
 {
+    using System;
     using System.Runtime.CompilerServices;
 
     public class CDT
@@ -25,11 +26,16 @@
 
             AddSuperTriangle(bounds);
 
-            Stack<Edge> legalize = new Stack<Edge>();
             foreach (Vec2 v in vertices)
             {
                 (int triangleIndex, int edgeIndex) = FindContaining(v);
-                Insert(legalize, v, triangleIndex, edgeIndex);
+                Insert(v, triangleIndex, edgeIndex);
+            }
+
+            for (int i = 0; i < unique.Count; i++)
+            {
+                int ii = (i + 1) % unique.Count;
+                AddConstraint(i + 3, ii + 3);
             }
 
             RemoveTrianglesContainingSuperVertices();
@@ -38,7 +44,140 @@
         public List<Vec2> Vertices => _vertices;
         public List<Triangle> Triangles => _triangles;
 
-        void Insert(Stack<Edge> legalize, Vec2 vertex, int triangle, int edge)
+        readonly struct Segment : IEquatable<Segment>
+        {
+            public readonly int a, b;
+
+            public Segment(int a, int b)
+            {
+                if (a < b)
+                {
+                    this.a = a;
+                    this.b = b;
+                }
+                else
+                {
+                    this.a = b;
+                    this.b = a;
+                }
+            }
+
+            public void Deconstruct(out int a, out int b)
+            {
+                a = this.a;
+                b = this.b;
+            }
+
+            public bool Equals(Segment other) => a == other.a && b == other.b;
+
+            public override bool Equals(object? obj) => obj is Segment other && Equals(other);
+
+            public override int GetHashCode() => HashCode.Combine(a, b);
+        }
+
+        void Refine(float maxArea, float minRad)
+        {
+            double minCos = Math.Cos(33 * Math.PI / 180.0);
+
+            Queue<int> badTriangles = new Queue<int>();
+            HashSet<Segment> seen = new HashSet<Segment>();
+            for (int i = 0; i < _triangles.Count; i++)
+            {
+                Triangle t = _triangles[i];
+                if (IsBadTriangle(t, minCos, maxArea))
+                {
+                    badTriangles.Enqueue(i);
+                }
+
+                for (int j = 0; j < 3; j++)
+                {
+                    if (!t.constraints[j]) continue;
+
+                    int a = t.indices[j];
+                    int b = t.indices[Triangle.NEXT[j]];
+                    seen.Add(new Segment(a, b));
+                }
+            }
+
+            List<Segment> segments = seen.ToList();
+            while (badTriangles.Count > 0)
+            {
+                int triIndex = badTriangles.Dequeue();
+                Triangle tri = _triangles[triIndex];
+
+                Vec2 cc = new Vec2(tri.circle.x, tri.circle.y);
+                if (EncroachesAnySegment(cc, segments, out int segmentIndex))
+                {
+                    (int a, int b) = segments[segmentIndex];
+                    Vec2 midPoint = Vec2.MidPoint(_vertices[a], _vertices[b]);
+
+                    (int triangleIndex, int edgeIndex) = FindContaining(midPoint);
+                    int vertexIndex = Insert(midPoint, triangleIndex, edgeIndex);
+
+                    segments[segmentIndex] = new Segment(a, vertexIndex);
+                    segments.Add(new Segment(vertexIndex, b));
+                }
+                else
+                {
+                    (int triangleIndex, int edgeIndex) = FindContaining(cc);
+                    Insert(cc, triangleIndex, edgeIndex);
+                }
+
+                badTriangles.Clear();
+                for (int i = 0; i < _triangles.Count; i++)
+                {
+                    if (IsBadTriangle(_triangles[i], minCos, maxArea))
+                    {
+                        badTriangles.Enqueue(i);
+                    }
+                }
+            }
+        }
+
+        bool EncroachesAnySegment(Vec2 point, List<Segment> segments, out int index)
+        {
+            index = NO_INDEX;
+            var (x, y) = point;
+            for (int i = 0; i < segments.Count; i++)
+            {
+                (int a, int b) = segments[i];
+                Vec2 av = _vertices[a];
+                Vec2 bv = _vertices[b];
+                Circle circle = new Circle(av, bv);
+
+                if (circle.Contains(x, y))
+                {
+                    if (Vec2.Cross(av, bv, point) < 0)
+                    {
+                        index = i;
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+
+        public bool IsBadTriangle(Triangle tri, double minAllowedCos, double maxAllowedArea)
+        {
+            Vec2 a = _vertices[tri.indices[0]];
+            Vec2 b = _vertices[tri.indices[1]];
+            Vec2 c = _vertices[tri.indices[2]];
+
+            double minAngle = double.MaxValue;
+            for (int curr = 0; curr < 3; curr++)
+            {
+                double angle = AngleCos(
+                    _vertices[Triangle.PREV[curr]],
+                    _vertices[curr],
+                    _vertices[Triangle.NEXT[curr]]);
+                if (minAngle > angle) minAngle = angle;
+            }
+
+            return minAngle < minAllowedCos || Area(a, b, c) > maxAllowedArea;
+        }
+
+        int Insert(Vec2 vertex, int triangle, int edge)
         {
             int vertexindex = _vertices.Count;
             _vertices.Add(vertex);
@@ -53,6 +192,7 @@
                 SplitEdge(triangle, edge, vertexindex);
             }
             Legalize();
+            return vertexindex;
         }
 
         void AddSuperTriangle(Rect rect)
@@ -201,19 +341,20 @@
                 double x = vtx.x;
                 double y = vtx.y;
 
-                bool duplicate = false;
-                foreach (Vec2 existing in unique)
+                int duplicate = NO_INDEX;
+                for (int i = 0; i < unique.Count; i++)
                 {
+                    Vec2 existing = unique[i];
                     double dx = existing.x - x;
                     double dy = existing.y - y;
                     if (dx * dx + dy * dy < epsSqr)
                     {
-                        duplicate = true;
+                        duplicate = i;
                         break;
                     }
                 }
 
-                if (!duplicate)
+                if (duplicate == NO_INDEX)
                 {
                     unique.Add(new Vec2(x, y));
                 }
@@ -847,6 +988,18 @@
                     throw new Exception("Failed to advance triangle march — possibly bad mesh topology.");
                 }
             }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static double AngleCos(Vec2 a, Vec2 b, Vec2 c)
+        {
+            return Vec2.Dot((a - b).Normalize(), (c - b).Normalize());
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static double Area(Vec2 a, Vec2 b, Vec2 c)
+        {
+            return Math.Abs(Vec2.Cross(a, b, c)) * 0.5;
         }
     }
 }

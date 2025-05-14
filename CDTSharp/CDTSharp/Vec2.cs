@@ -142,6 +142,12 @@ namespace CDTSharp
             return Math.Acos(Math.Clamp(dot / mag, 0, 1));
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vec2 MidPoint(Vec2 a, Vec2 b)
+        {
+            return new Vec2((a.x + b.x) * 0.5, (a.y + b.y) * 0.5);
+        }
+
         public static Vec2 Round(Vec2 v, int precision)
         {
             return new Vec2(Math.Round(v.x, precision), Math.Round(v.y, precision));
