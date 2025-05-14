@@ -7,6 +7,44 @@ namespace CDTSharp
         public const int NO_INDEX = -1;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vec2 Intersect(Vec2 p1, Vec2 p2, Vec2 q1, Vec2 q2)
+        {
+            // P(u) = p1 + u * (p2 - p1)
+            // Q(v) = q1 + v * (q2 - q1)
+
+            // goal to vind such 'u' and 'v' so:
+            // p1 + u * (p2 - p1) = q1 + v * (q2 - q1)
+            // which is:
+            // u * (p2x - p1x) - v * (q2x - q1x) = q1x - p1x
+            // u * (p2y - p1y) - v * (q2y - q1y) = q1y - p1y
+
+            // | p2x - p1x  -(q2x - q1x) | *  | u | =  | q1x - p1x |
+            // | p2y - p1y  -(q2y - q1y) |    | v |    | q1y - p1y |
+
+            // | a  b | * | u | = | e |
+            // | c  d |   | v |   | f |
+
+            double a = p2.x - p1.x, b = q1.x - q2.x;
+            double c = p2.y - p1.y, d = q1.y - q2.y;
+
+            double det = a * d - b * c;
+            if (det == 0)
+            {
+                return Vec2.NaN;
+            }
+
+            double e = q1.x - p1.x, f = q1.y - p1.y;
+
+            double u = (e * d - b * f) / det;
+            double v = (a * f - e * c) / det;
+
+            if (u < 0 || u > 1 || v < 0 || v > 1)
+                return Vec2.NaN; 
+
+            return new Vec2(p1.x + u * a, p1.y + u * c);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool ConvexQuad(Vec2 a, Vec2 b, Vec2 c, Vec2 d)
         {
             return SameSide(a, b, c, d) && SameSide(d, c, b, a);

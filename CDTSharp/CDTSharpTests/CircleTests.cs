@@ -70,5 +70,6 @@ namespace CDTSharpTests
 
             Assert.False(circle.Contains(a.x, a.y));
         }
+
     }
 }
