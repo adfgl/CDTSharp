@@ -517,5 +517,48 @@ namespace CDTSharp
             }
             return numFlips;
         }
+
+        public static Edge FindEdge(List<Triangle> triangles, int aIndex, int bIndex)
+        {
+            int lastContained = NO_INDEX;
+
+            for (int triIndex = 0; triIndex < triangles.Count; triIndex++)
+            {
+                Triangle tri = triangles[triIndex];
+                for (int edgeIndex = 0; edgeIndex < 3; edgeIndex++)
+                {
+                    if (tri.indices[edgeIndex] == aIndex)
+                    {
+                        if (tri.indices[Triangle.NEXT[edgeIndex]] == bIndex)
+                        {
+                            return new Edge(triIndex, edgeIndex);
+                        }
+                        lastContained = triIndex;
+                        break;
+                    }
+
+                }
+            }
+
+            TriangleWalker walker = new TriangleWalker(triangles, lastContained, aIndex);
+            do
+            {
+                int current = walker.Current;
+                int edge = triangles[current].IndexOfInvariant(aIndex, bIndex);
+                if (edge != NO_INDEX)
+                    return new Edge(current, edge);
+            }
+            while (walker.MoveNextCW());
+        
+            return new Edge(lastContained, NO_INDEX);
+        }
+
+        //public void AddConstraint(int aIndex, int bIndex)
+        //{
+        //    if (aIndex == bIndex)
+        //    {
+        //        return;
+        //    }
+        //}
     }
 }

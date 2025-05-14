@@ -1,5 +1,7 @@
 ﻿namespace CDTSharp
 {
+    using static CDTGeometry;
+
     public class CDT
     {
         readonly List<Vec2> _vertices = new List<Vec2>();
@@ -10,7 +12,7 @@
             _vertices.Clear();
             _triangles.Clear();
 
-            List<Vec2> unique = CDTGeometry.ExtractUnique(vertices);
+            List<Vec2> unique = ExtractUnique(vertices);
             if (unique.Count < 3)
             {
                 throw new ArgumentException("Set of points must contain at least 3 points.");
@@ -19,10 +21,36 @@
             Rect bounds = Rect.FromPoints(unique);
 
             AddSuperTriangle(bounds);
+
+            Stack<Edge> legalize = new Stack<Edge>();
+            foreach (Vec2 v in vertices)
+            {
+                (int triangleIndex, int edgeIndex) = FindContaining(_vertices, _triangles, v);
+                Insert(legalize, v, triangleIndex, edgeIndex);
+            }
+
+
         }
 
         public IReadOnlyList<Vec2> Vertices => _vertices;
         public IReadOnlyList<Triangle> Triangles => _triangles;
+
+        void Insert(Stack<Edge> legalize, Vec2 vertex, int triangle, int edge)
+        {
+            int vertexindex = _vertices.Count;
+            _vertices.Add(vertex);
+
+            Vec2 vtx = _vertices[vertexindex];
+            if (edge != NO_INDEX)
+            {
+                SplitTriangle(legalize, _vertices, _triangles, triangle, vertexindex);
+            }
+            else
+            {
+                SplitEdge(legalize, _vertices, _triangles, triangle, edge, vertexindex);
+            }
+            Legalize(legalize, _vertices, _triangles);
+        }
 
         void AddSuperTriangle(Rect rect)
         {
