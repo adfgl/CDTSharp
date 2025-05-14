@@ -553,12 +553,66 @@ namespace CDTSharp
             return new Edge(lastContained, NO_INDEX);
         }
 
-        //public void AddConstraint(int aIndex, int bIndex)
-        //{
-        //    if (aIndex == bIndex)
-        //    {
-        //        return;
-        //    }
-        //}
+        public static void AddConstraint(Stack<Edge> legalize, List<Vec2> vertices, List<Triangle> triangles, int aIndex, int bIndex)
+        {
+            if (aIndex == bIndex)
+            {
+                return;
+            }
+
+            Edge edge = FindEdge(triangles, aIndex, bIndex);
+            int triangle = edge.triangle;
+            if (edge.index != NO_INDEX)
+            {
+                MarkConstrained(triangles, triangle, edge.index);
+                return;
+            }
+
+
+            Vec2 p1 = vertices[aIndex];
+            Vec2 p2 = vertices[bIndex];
+
+            int current = EntranceTriangle(vertices, triangles, triangle, aIndex, bIndex);
+            while (true)
+            {
+                Triangle currentTri = triangles[current];
+                for (int i = 0; i < 3; i++)
+                {
+                    if (currentTri.constraints[i]) continue;
+
+                    Vec2 q1 = vertices[currentTri.indices[i]];
+                    Vec2 q2 = vertices[currentTri.indices[Triangle.NEXT[i]]];
+
+                    if (!Intersect(p1, p2, q1, q2).IsNaN())
+                    {
+                        FlipEdge(legalize, vertices, triangles, current, i);
+                        MarkConstrained(triangles, current, i);
+                        Legalize(legalize, vertices, triangles);
+                    }
+                }
+
+                if (currentTri.IndexOf(bIndex) != NO_INDEX)
+                    break;
+
+                bool advanced = false;
+                for (int i = 0; i < 3; i++)
+                {
+                    Vec2 q1 = vertices[currentTri.indices[i]];
+                    Vec2 q2 = vertices[currentTri.indices[Triangle.NEXT[i]]];
+
+                    if (Vec2.Cross(q1, q2, p2) > 0)
+                    {
+                        current = currentTri.adjacent[i];
+                        advanced = true;
+                        break;
+                    }
+                }
+
+                if (!advanced)
+                {
+                    throw new Exception("Failed to advance triangle march — possibly bad mesh topology.");
+                }
+            }
+        }
     }
 }

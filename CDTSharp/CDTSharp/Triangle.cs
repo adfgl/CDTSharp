@@ -4,14 +4,14 @@
     using System.Runtime.CompilerServices;
     using static CDTGeometry;
 
-    public readonly struct Triangle
+    public struct Triangle
     {
         public readonly static int[] NEXT = [1, 2, 0], PREV = [2, 0, 1];
 
         public readonly Circle circle;
         public readonly int[] indices, adjacent;
         public readonly bool[] constraints;
-        public readonly bool hole;
+        public bool hole;
 
         public Triangle(
             Circle circle,
@@ -26,6 +26,9 @@
             this.constraints = [con0, con1, con2];
             this.hole = hole;
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal bool ContainsSuper() => indices[0] < 3 || indices[1] < 3 || indices[2] < 3;
 
         public int IndexOf(int v)
         {

@@ -1,5 +1,6 @@
 ﻿namespace CDTSharp
 {
+    using System.ComponentModel;
     using static CDTGeometry;
 
     public class CDT
@@ -29,11 +30,11 @@
                 Insert(legalize, v, triangleIndex, edgeIndex);
             }
 
-
+            RemoveTrianglesContainingSuperVertices();
         }
 
-        public IReadOnlyList<Vec2> Vertices => _vertices;
-        public IReadOnlyList<Triangle> Triangles => _triangles;
+        public List<Vec2> Vertices => _vertices;
+        public List<Triangle> Triangles => _triangles;
 
         void Insert(Stack<Edge> legalize, Vec2 vertex, int triangle, int edge)
         {
@@ -68,6 +69,64 @@
             _vertices.Add(c);
 
             _triangles.Add(new Triangle(new Circle(a, b, c), 0, 1, 2));
+        }
+
+        void RemoveTrianglesContainingSuperVertices()
+        {
+            _vertices.RemoveRange(0, 3);
+
+            int write = 0;
+            for (int read = 0; read < _triangles.Count; read++)
+            {
+                Triangle tri = _triangles[read];
+
+                bool discard = tri.ContainsSuper();
+                if (discard)
+                {
+                    for (int i = 0; i < 3; i++)
+                    {
+                        int twinIndex = tri.adjacent[i];
+                        if (twinIndex == NO_INDEX)
+                        {
+                            continue;
+                        }
+
+                        Triangle twin = _triangles[twinIndex];
+                        int a = tri.indices[i];
+                        int b = tri.indices[Triangle.NEXT[i]];
+                        int twinEdge = twin.IndexOf(b, a);
+                        if (twinEdge != NO_INDEX)
+                        {
+                            twin.adjacent[twinEdge] = NO_INDEX;
+                        }
+                    }
+                }
+                else
+                {
+                    _triangles[write++] = tri;
+                }
+            }
+
+            if (write < _triangles.Count)
+            {
+                _triangles.RemoveRange(write, _triangles.Count - write);
+            }
+
+            Dictionary<int, int> remap = new Dictionary<int, int>();
+            for (int i = 0; i < _triangles.Count; i++)
+            {
+                Triangle tri = _triangles[i];
+
+                for (int j = 0; j < 3; j++)
+                {
+                    tri.indices[j] -= 3;
+
+                    int twin = tri.adjacent[j];
+                    tri.adjacent[j] = remap.TryGetValue(twin, out int newTwin) ? newTwin : NO_INDEX;
+                }
+
+                _triangles[i] = tri;
+            }
         }
     }
 }
