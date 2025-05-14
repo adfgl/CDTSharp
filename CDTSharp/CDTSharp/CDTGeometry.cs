@@ -60,40 +60,129 @@ namespace CDTSharp
                         v3                          v3            
             */
 
-            int lastTriangle = triangles.Count;
-            Triangle t0 = triangles[triangleIndex];
-            int t1Index = t0.GetAdjacent(edgeIndex);
+            //int lastTriangle = triangles.Count;
+            //Triangle t0 = triangles[triangleIndex];
+            //int t1Index = t0.GetAdjacent(edgeIndex);
+            //Triangle t1 = triangles[t1Index];
+
+            //(int v, int e, bool c) e20, e01, e12, e23, e30;
+            //e20 = t0.GetEdge(edgeIndex);
+            //e01 = t0.GetEdge((edgeIndex + 1) % 3);
+            //e12 = t0.GetEdge((edgeIndex + 2) % 3);
+
+            //int adjEdgeIndex = t1.IndexOf(e01.v, e20.v);
+            //e23 = t1.GetEdge((adjEdgeIndex + 1) % 3);
+            //e30 = t1.GetEdge((edgeIndex + 2) % 3);
+
+
+            //int[] triIndices = [triangleIndex, t1Index, lastTriangle, lastTriangle + 1];
+            //(int v, int e, bool c)[] edges = [e01, e12, e23, e30];
+            //for (int curr = 0; curr < 4; curr++)
+            //{
+            //    int next = (curr + 1) % 4;
+
+            //    Triangle tri = new Triangle(edges[curr].v, edges[next].v, vertexIndex);
+
+
+            //    if (curr < 2)
+            //    {
+            //        triangles[triIndices[curr]] = tri;
+            //    }
+            //    else
+            //    {
+            //        triangles.Add(tri);
+            //    }
+            //}
+
+        }
+
+        public static void FlipEdge(List<Vec2> vertices, List<Triangle> triangles, int triangleIndex, int edgeIndex)
+        {
+            /*
+                          v1                        v1
+                          /\                        /|\
+                         /  \                      / | \
+                        /    \                    /  |  \
+                   e01 /      \ e12          e01 /   |   \ e12
+                      /   t0   \                /    |    \
+                     /          \              /     | e20 \ 
+                    /    e20     \            /      |      \
+                v0 +--------------+ v2    v0 +   t1  |  t0   + v2
+                    \     e02    /            \      |      /
+                     \          /              \ e02 |     /
+                      \   t1   /                \    |    /
+                   e30 \      / e23          e30 \   |   / e23
+                        \    /                    \  |  /
+                         \  /                      \ | /
+                          \/                        \|/
+                          v3                        v3
+            */
+
+            int e20 = edgeIndex;
+            int t0Index = triangleIndex;
+            Triangle t0 = triangles[t0Index];
+
+            int i0 = t0.indices[Triangle.NEXT3[e20]];
+            int i1 = t0.indices[Triangle.PREV3[e20]];
+            int i2 = t0.indices[e20];
+
+            int t1Index = t0.adjacent[e20];
             Triangle t1 = triangles[t1Index];
 
-            (int v, int e, bool c) e20, e01, e12, e23, e30;
-            e20 = t0.GetEdge(edgeIndex);
-            e01 = t0.GetEdge((edgeIndex + 1) % 3);
-            e12 = t0.GetEdge((edgeIndex + 2) % 3);
+            int e02 = t1.IndexOf(i0, i2);
+            int i3 = t1.indices[Triangle.PREV3[e02]];
 
-            int adjEdgeIndex = t1.IndexOf(e01.v, e20.v);
-            e23 = t1.GetEdge((adjEdgeIndex + 1) % 3);
-            e30 = t1.GetEdge((edgeIndex + 2) % 3);
+            int e01 = Triangle.NEXT3[e20];
+            int e12 = Triangle.PREV3[e20];
+            int e23 = Triangle.NEXT3[e02];
+            int e30 = Triangle.PREV3[e02];
+
+            int adjIndex;
+
+            Triangle new0 = new Triangle(
+                new Circle(vertices[i3], vertices[i1], vertices[i2]), 
+                i3, i1, i2,
+                t1Index, t0.adjacent[e12], t1.adjacent[e23],
+                false, t0.constraints[e12], t1.constraints[e23]);
 
 
-            int[] triIndices = [triangleIndex, t1Index, lastTriangle, lastTriangle + 1];
-            (int v, int e, bool c)[] edges = [e01, e12, e23, e30];
-            for (int curr = 0; curr < 4; curr++)
+            adjIndex = t0.adjacent[e12];
+            if (adjIndex != NO_INDEX)
             {
-                int next = (curr + 1) % 4;
-
-                Triangle tri = new Triangle(edges[curr].v, edges[next].v, vertexIndex);
-
-
-                if (curr < 2)
-                {
-                    triangles[triIndices[curr]] = tri;
-                }
-                else
-                {
-                    triangles.Add(tri);
-                }
+                Triangle adj = triangles[adjIndex];
+                adj.adjacent[adj.IndexOf(i2, i1)] = t0Index;
             }
 
+            adjIndex = t1.adjacent[e23];
+            if (adjIndex != NO_INDEX)
+            {
+                Triangle adj = triangles[adjIndex];
+                adj.adjacent[adj.IndexOf(i3, i2)] = t0Index;
+            }
+
+            Triangle new1 = new Triangle(
+                new Circle(vertices[i1], vertices[i3], vertices[i0]), 
+                i1, i3, i0,
+                triangleIndex, t1.adjacent[e30], t0.adjacent[e01],
+                false, t1.constraints[e30], t0.constraints[e01]);
+
+
+            adjIndex = t0.adjacent[e01];
+            if (adjIndex != NO_INDEX)
+            {
+                Triangle adj = triangles[adjIndex];
+                adj.adjacent[adj.IndexOf(i1, i0)] = t1Index;
+            }
+
+            adjIndex = t1.adjacent[e30];
+            if (adjIndex != NO_INDEX)
+            {
+                Triangle adj = triangles[adjIndex];
+                adj.adjacent[adj.IndexOf(i0, i3)] = t1Index;
+            }
+
+            triangles[triangleIndex] = new0;
+            triangles[t1Index] = new1;
         }
 
         public static void SplitTriangle(List<Vec2> vertices, List<Triangle> triangles, int triangleIndex, int vertexIndex)
@@ -104,43 +193,22 @@ namespace CDTSharp
             Vec2 v0 = vertices[vertexIndex];
             for (int curr = 0; curr < 3; curr++)
             {
-                int next = (curr + 1) % 3;
-                int prev = (curr + 2) % 3;
+                int next = Triangle.NEXT3[curr];
+                int prev = Triangle.PREV3[curr];
 
-                int i1, i2, adjIndex;
-                bool constraint;
-                switch (curr)
-                {
-                    case 0:
-                        i1 = t.v0;
-                        i2 = t.v1;
-                        adjIndex = t.adj0;
-                        constraint = t.con0;
-                        break;
-
-                    case 1:
-                        i1 = t.v1;
-                        i2 = t.v2;
-                        adjIndex = t.adj1;
-                        constraint = t.con1;
-                        break;
-
-                    default:
-                        i1 = t.v2;
-                        i2 = t.v0;
-                        adjIndex = t.adj2;
-                        constraint = t.con2;
-                        break;
-                }
+                int i1 = t.indices[curr];
+                int i2 = t.indices[next];
+                int adjIndex = t.adjacent[curr];
+                bool constraint = t.constraints[curr];
 
                 if (adjIndex != NO_INDEX)
                 {
                     Triangle adj = triangles[adjIndex];
-                    adj.SetAdjacent(adj.IndexOf(i2, i1), triIndices[curr]);
-                    triangles[adjIndex] = adj;
+                    adj.adjacent[adj.IndexOf(i2, i1)] = triIndices[curr];
                 }
 
                 Triangle newTri = new Triangle(
+                    new Circle(v0, vertices[i1], vertices[i2]),
                     i1, i2, vertexIndex,
                     adjIndex, triIndices[next], triIndices[prev],
                     constraint, false, false,
