@@ -95,7 +95,7 @@ namespace CDTSharp
             return unique;
         }
 
-        public static void SplitEdge(List<Vec2> vertices, List<Triangle> triangles, int triangleIndex, int edgeIndex, int vertexIndex)
+        public static void SplitEdge(Stack<Edge> toLegalize, List<Vec2> vertices, List<Triangle> triangles, int triangleIndex, int edgeIndex, int vertexIndex)
         {
             /*
                         v1                          v1            
@@ -218,6 +218,7 @@ namespace CDTSharp
                 {
                     Triangle adjTri = triangles[adj0];
                     adjTri.adjacent[adjTri.IndexOf(bi, ai)] = ti;
+                    toLegalize.Push(new Edge(ti, 0));
                 }
 
                 if (curr < 2)
@@ -231,7 +232,7 @@ namespace CDTSharp
             }
         }
 
-        public static void FlipEdge(List<Vec2> vertices, List<Triangle> triangles, int triangleIndex, int edgeIndex)
+        public static void FlipEdge(Stack<Edge> toLegalize, List<Vec2> vertices, List<Triangle> triangles, int triangleIndex, int edgeIndex)
         {
             /*
                           v1                        v1
@@ -292,6 +293,8 @@ namespace CDTSharp
             {
                 Triangle adj = triangles[adjIndex];
                 adj.adjacent[adj.IndexOf(i3, i2)] = t0Index;
+
+                toLegalize.Push(new Edge(t0Index, 2));
             }
 
             Triangle new1 = new Triangle(
@@ -313,13 +316,15 @@ namespace CDTSharp
             {
                 Triangle adj = triangles[adjIndex];
                 adj.adjacent[adj.IndexOf(i0, i3)] = t1Index;
+
+                toLegalize.Push(new Edge(t1Index, 1));
             }
 
             triangles[triangleIndex] = new0;
             triangles[t1Index] = new1;
         }
 
-        public static void SplitTriangle(List<Vec2> vertices, List<Triangle> triangles, int triangleIndex, int vertexIndex)
+        public static void SplitTriangle(Stack<Edge> toLegalize, List<Vec2> vertices, List<Triangle> triangles, int triangleIndex, int vertexIndex)
         {
             Triangle t = triangles[triangleIndex];
             int lastTriangle = triangles.Count;
@@ -337,8 +342,10 @@ namespace CDTSharp
 
                 if (adjIndex != NO_INDEX)
                 {
+                    int triIndex = triIndices[curr];
                     Triangle adj = triangles[adjIndex];
-                    adj.adjacent[adj.IndexOf(i2, i1)] = triIndices[curr];
+                    adj.adjacent[adj.IndexOf(i2, i1)] = triIndex;
+                    toLegalize.Push(new Edge(triIndex, 0));
                 }
 
                 Triangle newTri = new Triangle(
@@ -403,6 +410,112 @@ namespace CDTSharp
             return 
                 t0.circle.Contains(v3.x, v3.y) && 
                 ConvexQuad(vertices[i0], vertices[i1], vertices[i2], v3);
+        }
+
+        public static int EntranceTriangle(List<Vec2> vertices, List<Triangle> triangles, int triangle, int aIndex, int bIndex)
+        {
+            Vec2 vb = vertices[bIndex];
+
+            TriangleWalker walker = new TriangleWalker(triangles, triangle, aIndex);
+            Triangle tri = triangles[walker.Current];
+            do
+            {
+                int toRightCount = 0;
+                for (int i = 0; i < 3; i++)
+                {
+                    int a = tri.indices[i];
+                    int b = tri.indices[Triangle.NEXT[i]];
+                    if (a == aIndex || b == aIndex)
+                    {
+                        if (Vec2.Cross(vertices[a], vertices[b], vb) <= 0)
+                        {
+                            toRightCount++;
+                        }
+                    }
+                }
+
+                if (toRightCount == 2)
+                {
+                    return walker.Current;
+                }
+            }
+            while (walker.MoveNextCW());
+
+            throw new Exception("Could not find entrance triangle.");
+        }
+
+        public static (int triangleIndex, int edgeIndex) FindContaining(List<Vec2> vertices, List<Triangle> triangles, Vec2 point, int startSearch = NO_INDEX, double tolerance = 1e-8)
+        {
+            int max = triangles.Count * 3;
+            int count = 0;
+
+            int contained = startSearch == NO_INDEX ? triangles.Count - 1 : startSearch;
+            while (true)
+            {
+                if (count++ > max)
+                {
+                    throw new Exception("Could not find containing triangle. Most likely mesh topology is invalid.");
+                }
+
+                bool inside = true;
+                Triangle tri = triangles[contained];
+                for (int i = 0; i < 3; i++)
+                {
+                    Vec2 start = vertices[tri.indices[i]];
+                    Vec2 end = vertices[tri.indices[Triangle.NEXT[i]]];
+
+                    double cross = Vec2.Cross(start, end, point);
+                    if (Math.Abs(cross) < tolerance && OnSegment(start, end, point, tolerance))
+                    {
+                        return (contained, i);
+                    }
+
+                    if (cross > 0)
+                    {
+                        contained = tri.adjacent[i];
+                        inside = false;
+                        break;
+                    }
+                }
+
+                if (inside)
+                {
+                    return (contained, NO_INDEX);
+                }
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void MarkConstrained(List<Triangle> triangles, int triangleIndex, int edgeIndex)
+        {
+            Triangle tri = triangles[triangleIndex];
+            tri.constraints[edgeIndex] = true;
+
+            int adjIndex = tri.adjacent[edgeIndex];
+            if (adjIndex == NO_INDEX)
+            {
+                throw new InvalidOperationException($"Edge {edgeIndex} in triangle {triangleIndex} has no twin. Cannot propagate constraint across broken topology.");
+            }
+
+            Triangle adj = triangles[adjIndex];
+            int a = tri.indices[edgeIndex];
+            int b = tri.indices[Triangle.NEXT[edgeIndex]];
+            adj.constraints[adj.IndexOf(b, a)] = true;
+        }
+
+        public static int Legalize(Stack<Edge> toLegalize, List<Vec2> vertices, List<Triangle> triangles)
+        {
+            int numFlips = 0;
+            while (toLegalize.Count > 0)
+            {
+                var (triangle, edge) = toLegalize.Pop();
+                if (ShouldFlip(vertices, triangles, triangle, edge))
+                {
+                    FlipEdge(toLegalize, vertices, triangles, triangle, edge);
+                    numFlips++;
+                }
+            }
+            return numFlips;
         }
     }
 }

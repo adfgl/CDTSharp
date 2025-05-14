@@ -103,7 +103,8 @@ namespace CDTSharpTests
 
             int vi = points.Count;
             points.Add(new Vec2(0, 0));
-            SplitEdge(points, triangles, 0, triangles[0].IndexOf(4, 3), vi);
+            Stack<Edge> toLegalize = new Stack<Edge>();
+            SplitEdge(toLegalize, points, triangles, 0, triangles[0].IndexOf(4, 3), vi);
 
             int trisAfter = triangles.Count;
             Assert.Equal(2, trisAfter - trisBefore);
@@ -121,7 +122,8 @@ namespace CDTSharpTests
             List<Triangle> triangles = [new Triangle(new Circle(), 0, 1, 2)];
 
             points.Add(new Vec2(0, 0));
-            SplitTriangle(points, triangles, 0, points.Count - 1);
+            Stack<Edge> toLegalize = new Stack<Edge>();
+            SplitTriangle(toLegalize, points, triangles, 0, points.Count - 1);
 
             Assert.Equal(3, triangles.Count);
 
@@ -147,7 +149,8 @@ namespace CDTSharpTests
                   0-------1------2    >    0-------1------2
              */
 
-            FlipEdge(vertices, triangles, 0, triangles[0].IndexOf(4, 3));
+            Stack<Edge> toLegalize = new Stack<Edge>();
+            FlipEdge(toLegalize, vertices, triangles, 0, triangles[0].IndexOf(4, 3));
 
             AssertHelper.Equal(new Triangle(new Circle(), 1, 6, 4, 1, 5, 3), triangles, 0);
             AssertHelper.Equal(new Triangle(new Circle(), 6, 1, 3, 0, 2, 4), triangles, 1);
