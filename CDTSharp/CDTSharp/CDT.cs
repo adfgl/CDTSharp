@@ -221,6 +221,76 @@
             return unique;
         }
 
+        public void SplitBoundaryEdge(int triangleIndex, int edgeIndex, int vertexIndex)
+        {
+            List<Vec2> vertices = _vertices;
+            List<Triangle> triangles = _triangles;
+            Stack<Edge> toLegalize = _toLegalize;
+
+            /*
+                        v1                          v1            
+                        /\                          /|\             
+                       /  \                        / | \           
+                      /    \                      /  |  \          
+                 e01 /      \ e12            e01 /   |   \ e12     
+                    /   t0   \                  /    |    \        
+                   /          \                / t0  |  t1 \       
+                  /            \              /      |      \      
+              v0 +--------------+ v2      v0 +-------+-------+ v2  
+            */
+
+            Triangle t0 = triangles[triangleIndex];
+
+            int i0 = t0.indices[Triangle.NEXT[edgeIndex]];
+            int i1 = t0.indices[Triangle.PREV[edgeIndex]];
+            int i2 = t0.indices[edgeIndex];
+
+            int e01 = Triangle.NEXT[edgeIndex];
+            int e12 = Triangle.PREV[edgeIndex];
+
+            int newIndex = triangles.Count;
+
+            bool constrained = t0.constraints[edgeIndex];
+            Vec2 v0 = vertices[vertexIndex];
+
+            Triangle new0 = new Triangle(
+                new Circle(v0, vertices[i0], vertices[i1]),
+                i0, i1, vertexIndex,
+                t0.adjacent[e01], newIndex, NO_INDEX,
+                t0.constraints[e01], false, constrained
+            );
+
+            Triangle new1 = new Triangle(
+                new Circle(v0, vertices[i1], vertices[i2]),
+                i1, i2, vertexIndex,
+                t0.adjacent[e12], NO_INDEX, triangleIndex,
+                t0.constraints[e12], constrained, false
+            );
+
+            int adjndex;
+
+            adjndex = new0.adjacent[0];
+            if (adjndex != NO_INDEX)
+            {
+                Triangle adj = triangles[adjndex];
+                adj.adjacent[adj.IndexOf(i1, i0)] = triangleIndex;
+            }
+
+            adjndex = new1.adjacent[0];
+            if (adjndex != NO_INDEX)
+            {
+                Triangle adj = triangles[adjndex];
+                adj.adjacent[adj.IndexOf(i2, i1)] = newIndex;
+            }
+
+            triangles[triangleIndex] = new0;
+            triangles.Add(new1);
+
+            toLegalize.Push(new Edge(triangleIndex, 0));
+            toLegalize.Push(new Edge(newIndex, 0));
+        }
+
+
         public void SplitEdge(int triangleIndex, int edgeIndex, int vertexIndex)
         {
             /*
@@ -256,6 +326,12 @@
             int i2 = t0.indices[e20];
 
             int t1Index = t0.adjacent[e20];
+            if (t1Index == NO_INDEX)
+            {
+                SplitBoundaryEdge(triangleIndex, edgeIndex, vertexIndex);
+                return;
+            }
+
             Triangle t1 = triangles[t1Index];
 
             int e02 = t1.IndexOf(i0, i2);
@@ -413,7 +489,8 @@
                 new Circle(vertices[i3], vertices[i1], vertices[i2]),
                 i3, i1, i2,
                 t1Index, t0.adjacent[e12], t1.adjacent[e23],
-                false, t0.constraints[e12], t1.constraints[e23]);
+                false, t0.constraints[e12], t1.constraints[e23]
+                , t0.hole, t0.parent);
 
             adjIndex = t0.adjacent[e12];
             if (adjIndex != NO_INDEX)
@@ -435,8 +512,8 @@
                 new Circle(vertices[i1], vertices[i3], vertices[i0]),
                 i1, i3, i0,
                 triangleIndex, t1.adjacent[e30], t0.adjacent[e01],
-                false, t1.constraints[e30], t0.constraints[e01]);
-
+                false, t1.constraints[e30], t0.constraints[e01],
+                t1.hole, t1.parent);
 
             adjIndex = t0.adjacent[e01];
             if (adjIndex != NO_INDEX)
@@ -468,6 +545,7 @@
             int lastTriangle = triangles.Count;
             int[] triIndices = [triangleIndex, lastTriangle, lastTriangle + 1];
             Vec2 v0 = vertices[vertexIndex];
+
             for (int curr = 0; curr < 3; curr++)
             {
                 int next = Triangle.NEXT[curr];
@@ -491,7 +569,7 @@
                     i1, i2, vertexIndex,
                     adjIndex, triIndices[next], triIndices[prev],
                     constraint, false, false,
-                    t.hole
+                    t.hole, t.parent
                 );
 
                 if (curr == 0)
@@ -533,7 +611,7 @@
             int e20 = edgeIndex;
             int t0Index = triangleIndex;
             Triangle t0 = triangles[t0Index];
-            if (t0Index == NO_INDEX || t0.constraints[e20])
+            if (t0.hole || t0Index == NO_INDEX || t0.constraints[e20])
             {
                 return false;
             }
