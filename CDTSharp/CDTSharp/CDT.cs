@@ -11,7 +11,7 @@
         readonly List<Triangle> _triangles = new List<Triangle>();
         readonly Stack<LegalizeEdge> _toLegalize = new Stack<LegalizeEdge>();
 
-        public void Triangulate(CDTInput input)
+        public CDT Triangulate(CDTInput input)
         {
             _vertices.Clear();
             _triangles.Clear();
@@ -38,6 +38,7 @@
             {
                 Refine(input.MaxArea, input.MinAngle / 180d * Math.PI);
             }
+            return this;
         }
 
         public List<Vec2> Vertices => _vertices;
@@ -48,27 +49,36 @@
             for (int i = 0; i < _triangles.Count; i++)
             {
                 Triangle triangle = _triangles[i];
+                if (triangle.ContainsSuper()) continue;
+
                 var (x, y) = Center(triangle);
 
-                bool insideContour = false;
+                (Polygon, Polygon[])? contained = null;
                 foreach (var item in polys)
                 {
-                    Polygon contour = item.Item1;
-                    if (contour.Contains(vertices, x, y))
+                    if (item.Item1.Contains(vertices, x, y))
                     {
-                        insideContour = true;
-                        triangle.parent = contour.index;
-                        foreach (Polygon hole in item.Item2)
-                        {
-                            if (hole.Contains(vertices, x, y))
-                            {
-                                insideContour = false;
-                            }
-                        }
+                        contained = item;
+                        break;
                     }
                 }
 
-                triangle.hole = !insideContour;
+                if (contained == null)
+                {
+                    triangle.parent = -1;
+                    triangle.hole = true;
+                    continue;
+                }
+
+                triangle.parent = contained.Value.Item1.index;
+                foreach (var hole in contained.Value.Item2)
+                {
+                    if (hole.Contains(vertices, x, y))
+                    {
+                        triangle.hole = true;
+                        break;
+                    }
+                }
                 _triangles[i] = triangle;
             }
         }
@@ -185,7 +195,7 @@
             _vertices.Add(vertex);
 
             Vec2 vtx = _vertices[vertexindex];
-            if (edge != NO_INDEX)
+            if (edge == NO_INDEX)
             {
                 SplitTriangle(triangle, vertexindex);
             }

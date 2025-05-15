@@ -138,7 +138,22 @@ namespace CDTSharp
                 Constraint current = constraints[i];
                 var (a, b) = current;
                 var (x, y) = Vec2.MidPoint(a, b);
-                if (!Contains(contour, holeContours, x, y, eps))
+
+                bool remove;
+                switch (current.type)
+                {
+                    case EConstraint.Hole:
+                        remove = !Contains(contour, x, y, eps);
+                        break;
+                    case EConstraint.User:
+                        remove = !Contains(contour, holeContours, x, y, eps);
+                        break;
+                    default:
+                        remove = false;
+                        break;
+                }
+
+                if (remove)
                 {
                     constraints.RemoveAt(i);
                 }

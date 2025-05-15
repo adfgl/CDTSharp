@@ -8,7 +8,7 @@ namespace CDTSharp
 {
     public static class CDTEx
     {
-        public static string ToSvg(this CDT cdt, int size = 1000, float padding = 10f, bool showFaceIndices = false, bool showVertexIndices = false, bool fill = true)
+        public static string ToSvg(this CDT cdt, int size = 1000, float padding = 10f,  bool fill = true)
         {
             if (cdt.Vertices.Count == 0 || cdt.Triangles.Count == 0)
                 return "<svg xmlns='http://www.w3.org/2000/svg'/>";
