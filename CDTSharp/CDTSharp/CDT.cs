@@ -9,7 +9,7 @@
 
         readonly List<Vec2> _vertices = new List<Vec2>();
         readonly List<Triangle> _triangles = new List<Triangle>();
-        readonly Stack<Edge> _toLegalize = new Stack<Edge>();
+        readonly Stack<LegalizeEdge> _toLegalize = new Stack<LegalizeEdge>();
 
         public void Triangulate(IEnumerable<Vec2> vertices)
         {
@@ -44,36 +44,7 @@
         public List<Vec2> Vertices => _vertices;
         public List<Triangle> Triangles => _triangles;
 
-        readonly struct Segment : IEquatable<Segment>
-        {
-            public readonly int a, b;
-
-            public Segment(int a, int b)
-            {
-                if (a < b)
-                {
-                    this.a = a;
-                    this.b = b;
-                }
-                else
-                {
-                    this.a = b;
-                    this.b = a;
-                }
-            }
-
-            public void Deconstruct(out int a, out int b)
-            {
-                a = this.a;
-                b = this.b;
-            }
-
-            public bool Equals(Segment other) => a == other.a && b == other.b;
-
-            public override bool Equals(object? obj) => obj is Segment other && Equals(other);
-
-            public override int GetHashCode() => HashCode.Combine(a, b);
-        }
+       
 
         void Refine(float maxArea, float minRad)
         {
@@ -366,7 +337,7 @@
         {
             List<Vec2> vertices = _vertices;
             List<Triangle> triangles = _triangles;
-            Stack<Edge> toLegalize = _toLegalize;
+            Stack<LegalizeEdge> toLegalize = _toLegalize;
 
             /*
                         v1                          v1            
@@ -427,8 +398,8 @@
             triangles[triangleIndex] = new0;
             triangles.Add(new1);
 
-            toLegalize.Push(new Edge(triangleIndex, 0));
-            toLegalize.Push(new Edge(newIndex, 0));
+            toLegalize.Push(new LegalizeEdge(triangleIndex, 0));
+            toLegalize.Push(new LegalizeEdge(newIndex, 0));
         }
 
 
@@ -454,7 +425,7 @@
                         v3                          v3            
             */
 
-            Stack<Edge> toLegalize = _toLegalize;
+            Stack<LegalizeEdge> toLegalize = _toLegalize;
             List<Vec2> vertices = _vertices;
             List<Triangle> triangles = _triangles;
 
@@ -565,7 +536,7 @@
                 {
                     Triangle adjTri = triangles[adj0];
                     adjTri.adjacent[adjTri.IndexOf(bi, ai)] = ti;
-                    toLegalize.Push(new Edge(ti, 0));
+                    toLegalize.Push(new LegalizeEdge(ti, 0));
                 }
 
                 if (curr < 2)
@@ -601,7 +572,7 @@
                           v3                        v3
             */
 
-            Stack<Edge> toLegalize = _toLegalize;
+            Stack<LegalizeEdge> toLegalize = _toLegalize;
             List<Vec2> vertices = _vertices;
             List<Triangle> triangles = _triangles;
 
@@ -646,7 +617,7 @@
                 Triangle adj = triangles[adjIndex];
                 adj.adjacent[adj.IndexOf(i3, i2)] = t0Index;
 
-                toLegalize.Push(new Edge(t0Index, 2));
+                toLegalize.Push(new LegalizeEdge(t0Index, 2));
             }
 
             Triangle new1 = new Triangle(
@@ -669,7 +640,7 @@
                 Triangle adj = triangles[adjIndex];
                 adj.adjacent[adj.IndexOf(i0, i3)] = t1Index;
 
-                toLegalize.Push(new Edge(t1Index, 1));
+                toLegalize.Push(new LegalizeEdge(t1Index, 1));
             }
 
             triangles[triangleIndex] = new0;
@@ -678,7 +649,7 @@
 
         public void SplitTriangle(int triangleIndex, int vertexIndex)
         {
-            Stack<Edge> toLegalize = _toLegalize;
+            Stack<LegalizeEdge> toLegalize = _toLegalize;
             List<Vec2> vertices = _vertices;
             List<Triangle> triangles = _triangles;
 
@@ -702,7 +673,7 @@
                     int triIndex = triIndices[curr];
                     Triangle adj = triangles[adjIndex];
                     adj.adjacent[adj.IndexOf(i2, i1)] = triIndex;
-                    toLegalize.Push(new Edge(triIndex, 0));
+                    toLegalize.Push(new LegalizeEdge(triIndex, 0));
                 }
 
                 Triangle newTri = new Triangle(
@@ -871,7 +842,7 @@
 
         public int Legalize()
         {
-            Stack<Edge> toLegalize = _toLegalize;
+            Stack<LegalizeEdge> toLegalize = _toLegalize;
             List<Vec2> vertices = _vertices;
             List<Triangle> triangles = _triangles;
 
@@ -888,7 +859,7 @@
             return numFlips;
         }
 
-        public Edge FindEdge(int aIndex, int bIndex)
+        public LegalizeEdge FindEdge(int aIndex, int bIndex)
         {
             List<Triangle> triangles = _triangles;
 
@@ -902,7 +873,7 @@
                     {
                         if (tri.indices[Triangle.NEXT[edgeIndex]] == bIndex)
                         {
-                            return new Edge(triIndex, edgeIndex);
+                            return new LegalizeEdge(triIndex, edgeIndex);
                         }
                         lastContained = triIndex;
                         break;
@@ -917,11 +888,11 @@
                 int current = walker.Current;
                 int edge = triangles[current].IndexOfInvariant(aIndex, bIndex);
                 if (edge != NO_INDEX)
-                    return new Edge(current, edge);
+                    return new LegalizeEdge(current, edge);
             }
             while (walker.MoveNextCW());
 
-            return new Edge(lastContained, NO_INDEX);
+            return new LegalizeEdge(lastContained, NO_INDEX);
         }
 
         public void AddConstraint(int aIndex, int bIndex)
@@ -933,9 +904,9 @@
 
             List<Triangle> triangles = _triangles;
             List<Vec2> vertices = _vertices;
-            Stack<Edge> legalize = _toLegalize;
+            Stack<LegalizeEdge> legalize = _toLegalize;
 
-            Edge edge = FindEdge(aIndex, bIndex);
+            LegalizeEdge edge = FindEdge(aIndex, bIndex);
             int triangle = edge.triangle;
             if (edge.index != NO_INDEX)
             {

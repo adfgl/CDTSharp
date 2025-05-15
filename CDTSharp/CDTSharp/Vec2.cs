@@ -100,6 +100,12 @@ namespace CDTSharp
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool operator !=(Vec2 a, Vec2 b) => a.x != b.x || a.y != b.y;
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool AlmostEqual(Vec2 other, double eps = 1e-8)
+        {
+            return Math.Abs(x - other.x) < eps && Math.Abs(y - other.y) < eps;
+        }
+
         public bool Equals(Vec2 other)
         {
             return x == other.x && y == other.y;
