@@ -11,44 +11,76 @@
         readonly List<Triangle> _triangles = new List<Triangle>();
         readonly Stack<LegalizeEdge> _toLegalize = new Stack<LegalizeEdge>();
 
-        public void Triangulate(IEnumerable<Vec2> vertices)
+        public void Triangulate(CDTInput input)
         {
             _vertices.Clear();
             _triangles.Clear();
 
-            List<Vec2> unique = ExtractUnique(vertices);
-            if (unique.Count < 3)
-            {
-                throw new ArgumentException("Set of points must contain at least 3 points.");
-            }
+            InputPreprocessor processed = new InputPreprocessor(input);
 
-            Rect bounds = Rect.FromPoints(unique);
+            AddSuperTriangle(processed.Rect);
 
-            AddSuperTriangle(bounds);
-
-            foreach (Vec2 v in vertices)
+            foreach (Vec2 v in processed.Vertices)
             {
                 (int triangleIndex, int edgeIndex) = FindContaining(v);
                 Insert(v, triangleIndex, edgeIndex);
             }
 
-            for (int i = 0; i < unique.Count; i++)
+            foreach ((int a, int b) in processed.Constraints)
             {
-                int ii = (i + 1) % unique.Count;
-                AddConstraint(i + 3, ii + 3);
+                AddConstraint(a + 3, b + 3);
             }
 
-            RemoveTrianglesContainingSuperVertices();
+            MarkHoles(processed.Polygons, processed.Vertices);
+            RemoveTrianglesContainingSuperVertices(input.KeepConvex);
+
+            if (input.Refine)
+            {
+                Refine(input.MaxArea, input.MinAngle / 180d * Math.PI);
+            }
         }
 
         public List<Vec2> Vertices => _vertices;
         public List<Triangle> Triangles => _triangles;
 
-       
-
-        void Refine(float maxArea, float minRad)
+        void MarkHoles(List<(Polygon, Polygon[])> polys, List<Vec2> vertices)
         {
-            double minCos = Math.Cos(33 * Math.PI / 180.0);
+            for (int i = 0; i < _triangles.Count; i++)
+            {
+                Triangle triangle = _triangles[i];
+                var (x, y) = Center(triangle);
+
+                bool insideContour = false;
+                foreach (var item in polys)
+                {
+                    Polygon contour = item.Item1;
+                    if (contour.Contains(vertices, x, y))
+                    {
+                        insideContour = true;
+                        triangle.parent = contour.index;
+                        foreach (Polygon hole in item.Item2)
+                        {
+                            if (hole.Contains(vertices, x, y))
+                            {
+                                insideContour = false;
+                            }
+                        }
+                    }
+                }
+
+                triangle.hole = !insideContour;
+                _triangles[i] = triangle;
+            }
+        }
+
+        Vec2 Center(Triangle t)
+        {
+            return (_vertices[t.indices[0]] + _vertices[t.indices[1]] + _vertices[t.indices[2]]) / 3;
+        }
+
+        void Refine(double maxArea, double minRad)
+        {
+            double minCos = Math.Cos(minRad);
 
             Queue<int> badTriangles = new Queue<int>();
             HashSet<Segment> seen = new HashSet<Segment>();
@@ -128,7 +160,6 @@
             return false;
         }
 
-
         public bool IsBadTriangle(Triangle tri, double minAllowedCos, double maxAllowedArea)
         {
             Vec2 a = _vertices[tri.indices[0]];
@@ -184,7 +215,7 @@
             _triangles.Add(new Triangle(new Circle(a, b, c), 0, 1, 2));
         }
 
-        void RemoveTrianglesContainingSuperVertices()
+        void RemoveTrianglesContainingSuperVertices(bool keepConvex)
         {
             _vertices.RemoveRange(0, 3);
 
@@ -193,16 +224,13 @@
             {
                 Triangle tri = _triangles[read];
 
-                bool discard = tri.ContainsSuper();
+                bool discard = tri.ContainsSuper() || (!keepConvex && tri.hole);
                 if (discard)
                 {
                     for (int i = 0; i < 3; i++)
                     {
                         int twinIndex = tri.adjacent[i];
-                        if (twinIndex == NO_INDEX)
-                        {
-                            continue;
-                        }
+                        if (twinIndex == NO_INDEX) continue;
 
                         Triangle twin = _triangles[twinIndex];
                         int a = tri.indices[i];
@@ -300,37 +328,6 @@
         static bool SameSide(Vec2 a, Vec2 b, Vec2 c, Vec2 d)
         {
             return Vec2.Cross(a, b, c) * Vec2.Cross(c, d, a) >= 0;
-        }
-
-        public static List<Vec2> ExtractUnique(IEnumerable<Vec2> vertices, double eps = 1e-6)
-        {
-            List<Vec2> unique = new List<Vec2>();
-
-            double epsSqr = eps * eps;
-            foreach (Vec2 vtx in vertices)
-            {
-                double x = vtx.x;
-                double y = vtx.y;
-
-                int duplicate = NO_INDEX;
-                for (int i = 0; i < unique.Count; i++)
-                {
-                    Vec2 existing = unique[i];
-                    double dx = existing.x - x;
-                    double dy = existing.y - y;
-                    if (dx * dx + dy * dy < epsSqr)
-                    {
-                        duplicate = i;
-                        break;
-                    }
-                }
-
-                if (duplicate == NO_INDEX)
-                {
-                    unique.Add(new Vec2(x, y));
-                }
-            }
-            return unique;
         }
 
         public void SplitBoundaryEdge(int triangleIndex, int edgeIndex, int vertexIndex)
