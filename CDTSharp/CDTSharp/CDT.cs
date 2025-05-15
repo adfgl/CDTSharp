@@ -32,12 +32,14 @@
             }
 
             MarkHoles(processed.Polygons, processed.Vertices);
-            RemoveTrianglesContainingSuperVertices(input.KeepConvex);
 
             if (input.Refine)
             {
-                Refine(input.MaxArea, input.MinAngle / 180d * Math.PI);
+                Refine(processed.Polygons, input.MaxArea);
+                //Refine(input.MaxArea, input.MinAngle / 180d * Math.PI);
             }
+            RemoveTrianglesContainingSuperVertices(input.KeepConvex);
+
             return this;
         }
 
@@ -48,44 +50,207 @@
         {
             for (int i = 0; i < _triangles.Count; i++)
             {
-                Triangle triangle = _triangles[i];
-                if (triangle.ContainsSuper()) continue;
+                Triangle t = _triangles[i];
+                if (t.ContainsSuper()) continue;
 
-                var (x, y) = Center(triangle);
+                var (x, y) = Center(t);
 
-                (Polygon, Polygon[])? contained = null;
                 foreach (var item in polys)
                 {
-                    if (item.Item1.Contains(vertices, x, y))
+                    var p = item.Item1;
+                    if (p.Contains(vertices, x, y))
                     {
-                        contained = item;
+                        t.parent = p.index;
+                        foreach (var hole in item.Item2)
+                        {
+                            if (hole.Contains(vertices, x, y))
+                            {
+                                t.hole = true;
+                                break;
+                            }
+                        }
+                        _triangles[i] = t;
                         break;
                     }
                 }
-
-                if (contained == null)
-                {
-                    triangle.parent = -1;
-                    triangle.hole = true;
-                    continue;
-                }
-
-                triangle.parent = contained.Value.Item1.index;
-                foreach (var hole in contained.Value.Item2)
-                {
-                    if (hole.Contains(vertices, x, y))
-                    {
-                        triangle.hole = true;
-                        break;
-                    }
-                }
-                _triangles[i] = triangle;
             }
         }
 
         Vec2 Center(Triangle t)
         {
             return (_vertices[t.indices[0]] + _vertices[t.indices[1]] + _vertices[t.indices[2]]) / 3;
+        }
+
+        void Refine(List<(Polygon, Polygon[])> polys, double maxArea)
+        {
+            double maxSide = Math.Sqrt(4 * maxArea / Math.Sqrt(3));
+            SplitLongConstrainedEdges(maxSide);
+            SplitLargeTriangles(maxArea, maxSide);
+        }
+
+        void SplitLargeTriangles(double maxArea, double maxSide, int maxExpected = 100_000)
+        {
+            Stack<int> stack = new Stack<int>(_triangles.Count);
+            for (int i = _triangles.Count - 1; i >= 0; i--)
+            {
+                Triangle t = _triangles[i];
+                if (!t.hole && !t.ContainsSuper())
+                {
+                    stack.Push(i);
+                }
+            }
+
+            double maxSideSqr = maxSide * maxSide;
+
+            int refinementCount = 0;
+            while (stack.Count > 0)
+            {
+                if (++refinementCount > maxExpected)
+                {
+#if DEBUG
+                    throw new Exception($"Refinement limit ({maxExpected}) reached — possible degeneracy or over-refinement.");
+#endif
+                    return;
+                }
+
+                int triIndex = stack.Pop();
+                Triangle tri = _triangles[triIndex];
+
+                int longestEdgeIndex = NO_INDEX;
+                double longestEdgeSqr = -1;
+                for (int e = 0; e < 3; e++)
+                {
+                    Vec2 va = _vertices[tri.indices[e]];
+                    Vec2 vb = _vertices[tri.indices[(e + 1) % 3]];
+
+                    double dx = va.x - vb.x;
+                    double dy = va.y - vb.y;
+                    double lenSqr = dx * dx + dy * dy;
+                    if (lenSqr > maxSideSqr && longestEdgeSqr < lenSqr)
+                    {
+                        longestEdgeSqr = lenSqr;
+                        longestEdgeIndex = e;
+                    }
+                }
+
+                Vec2 a = _vertices[tri.indices[0]];
+                Vec2 b = _vertices[tri.indices[1]];
+                Vec2 c = _vertices[tri.indices[2]];
+                if (longestEdgeIndex == NO_INDEX && maxArea > Area(a, b, c)) continue;
+
+                Vec2 v0 = _vertices[tri.indices[longestEdgeIndex]];
+                Vec2 v1 = _vertices[tri.indices[(longestEdgeIndex + 1) % 3]];
+                double x = (v0.x + v1.x) * 0.5;
+                double y = (v0.y + v1.y) * 0.5;
+
+                int vi = _vertices.Count;
+                Vec2 toInsert = new Vec2(x, y);
+                double proximity = 0.01 * Math.Sqrt(longestEdgeSqr);
+                if (IsTooCloseToNeighbors(toInsert, triIndex, proximity))
+                {
+                    continue;
+                }
+
+                Insert(toInsert, triIndex, longestEdgeIndex);
+
+                TriangleWalker walker = new TriangleWalker(_triangles, triIndex, vi);
+                do
+                {
+                    int ti = walker.Current;
+                    Triangle t = _triangles[ti];
+                    if (!t.hole && !t.ContainsSuper())
+                    {
+                        stack.Push(ti);
+                    }
+                }
+                while (walker.MoveNextCW());
+            }
+        }
+
+        bool IsTooCloseToNeighbors(Vec2 toInsert, int triangleIndex, double proximity)
+        {
+            Triangle tri = _triangles[triangleIndex];
+
+            for (int i = 0; i < 3; i++)
+            {
+                Vec2 v = _vertices[tri.indices[i]];
+                if (v.AlmostEqual(toInsert, proximity))
+                    return true;
+
+                int adjIndex = tri.adjacent[i];
+                if (adjIndex != NO_INDEX)
+                {
+                    Triangle adj = _triangles[adjIndex];
+                    for (int j = 0; j < 3; j++)
+                    {
+                        v = _vertices[adj.indices[j]];
+                        if (v.AlmostEqual(toInsert, proximity))
+                            return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        void SplitLongConstrainedEdges(double maxLength)
+        {
+            Stack<(int triIndex, int edge)> toSplit = new();
+            for (int i = 0; i < _triangles.Count; i++)
+            {
+                Triangle t = _triangles[i];
+                if (t.hole || t.ContainsSuper()) continue;
+                for (int e = 0; e < 3; e++)
+                {
+                    if (t.constraints[e])
+                    {
+                        toSplit.Push((i, e));
+                    }
+                }
+            }
+
+            while (toSplit.Count > 0)
+            {
+                var (triIndex, edge) = toSplit.Pop();
+
+                Triangle tri = _triangles[triIndex];
+                if (!tri.constraints[edge])
+                {
+                    continue;
+                }
+
+                int a = tri.indices[edge];
+                int b = tri.indices[(edge + 1) % 3];
+
+                Vec2 va = _vertices[a];
+                Vec2 vb = _vertices[b];
+
+                double dx = va.x - vb.x;
+                double dy = va.y - vb.y;
+                double lenSq = dx * dx + dy * dy;
+
+                if (lenSq <= maxLength * maxLength)
+                    continue;
+
+                int vi = _vertices.Count;
+                Vec2 mid = Vec2.MidPoint(va, vb);
+                Insert(Vec2.MidPoint(va, vb), triIndex, edge);
+
+                TriangleWalker walker = new TriangleWalker(_triangles, triIndex, vi);
+                do
+                {
+                    int ti = walker.Current;
+                    Triangle t = _triangles[ti];
+                    if (t.hole || t.ContainsSuper()) continue;
+                    for (int i = 0; i < 3; i++)
+                    {
+                        if (t.constraints[i])
+                        {
+                            toSplit.Push((ti, i));
+                        }
+                    }
+                }
+                while (walker.MoveNextCW());
+            }
         }
 
         void Refine(double maxArea, double minRad)
@@ -115,17 +280,29 @@
             List<Segment> segments = seen.ToList();
             while (badTriangles.Count > 0)
             {
-                int triIndex = badTriangles.Dequeue();
-                Triangle tri = _triangles[triIndex];
+                Triangle tri = _triangles[badTriangles.Dequeue()];
 
                 Vec2 cc = new Vec2(tri.circle.x, tri.circle.y);
+                if (cc.IsNaN())
+                {
+                    Console.WriteLine(this.ToSvg());
+                    throw new Exception();
+                }
+
                 if (EncroachesAnySegment(cc, segments, out int segmentIndex))
                 {
                     (int a, int b) = segments[segmentIndex];
                     Vec2 midPoint = Vec2.MidPoint(_vertices[a], _vertices[b]);
 
-                    (int triangleIndex, int edgeIndex) = FindContaining(midPoint);
-                    int vertexIndex = Insert(midPoint, triangleIndex, edgeIndex);
+                    LegalizeEdge edge = FindEdge(a, b);
+
+                    //(int triangleIndex, int edgeIndex) = FindContaining(midPoint);
+                    if (edge.index == NO_INDEX)
+                    {
+                        throw new Exception();
+                    }
+
+                    int vertexIndex = Insert(midPoint, edge.triangle, edge.index);
 
                     segments[segmentIndex] = new Segment(a, vertexIndex);
                     segments.Add(new Segment(vertexIndex, b));
@@ -147,6 +324,7 @@
             }
         }
 
+
         bool EncroachesAnySegment(Vec2 point, List<Segment> segments, out int index)
         {
             index = NO_INDEX;
@@ -160,11 +338,8 @@
 
                 if (circle.Contains(x, y))
                 {
-                    if (Vec2.Cross(av, bv, point) < 0)
-                    {
-                        index = i;
-                        return true;
-                    }
+                    index = i;
+                    return true;
                 }
             }
             return false;
@@ -172,6 +347,8 @@
 
         public bool IsBadTriangle(Triangle tri, double minAllowedCos, double maxAllowedArea)
         {
+            if (tri.hole || tri.ContainsSuper()) return false;
+
             Vec2 a = _vertices[tri.indices[0]];
             Vec2 b = _vertices[tri.indices[1]];
             Vec2 c = _vertices[tri.indices[2]];
@@ -194,7 +371,6 @@
             int vertexindex = _vertices.Count;
             _vertices.Add(vertex);
 
-            Vec2 vtx = _vertices[vertexindex];
             if (edge == NO_INDEX)
             {
                 SplitTriangle(triangle, vertexindex);
@@ -782,10 +958,12 @@
             }
             while (walker.MoveNextCW());
 
+            Console.WriteLine(this.ToSvg()); ;
+
             throw new Exception("Could not find entrance triangle.");
         }
 
-        public (int triangleIndex, int edgeIndex) FindContaining(Vec2 point, int startSearch = NO_INDEX, double tolerance = 1e-8)
+        public (int triangleIndex, int edgeIndex) FindContaining(Vec2 point, double tolerance = 1e-8)
         {
             List<Vec2> vertices = _vertices;
             List<Triangle> triangles = _triangles; 
@@ -793,7 +971,7 @@
             int max = triangles.Count * 3;
             int count = 0;
 
-            int contained = startSearch == NO_INDEX ? triangles.Count - 1 : startSearch;
+            int contained = triangles.Count - 1;
             while (true)
             {
                 if (count++ > max)

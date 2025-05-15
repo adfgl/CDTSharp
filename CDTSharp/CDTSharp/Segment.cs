@@ -35,5 +35,10 @@ namespace CDTSharp
         public override bool Equals(object? obj) => obj is Segment other && Equals(other);
 
         public override int GetHashCode() => HashCode.Combine(a, b);
+
+        public override string ToString()
+        {
+            return $"{a} {b}";
+        }
     }
 }

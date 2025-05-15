@@ -30,7 +30,7 @@
         public bool Contains(List<Vec2> vertices, double x, double y, double tolerance = 0)
         {
             List<Vec2>? verts = vertices;
-            int count = verts.Count;
+            int count = indices.Count;
             bool inside = false;
             for (int i = 0, j = count - 1; i < count; j = i++)
             {

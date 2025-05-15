@@ -101,6 +101,7 @@ namespace CDTSharp
             {
                 holePolygons.Add(BuildPolygon(-1, item.Item1, eps));
             }
+            _polygons.Add((contourPoly, holePolygons.ToArray()));
 
             foreach (var item in pointConstraints)
             {
@@ -291,7 +292,7 @@ namespace CDTSharp
                 }
 
                 bool add = true;
-                for (int i = holes.Count - 1; i >= 0; i--)
+                for (int i = contours.Count - 1; i >= 0; i--)
                 {
                     (List<Vec2>, Rect) existing = contours[i];
                     if (Contains(existing, holeContour, eps))

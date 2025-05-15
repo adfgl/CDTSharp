@@ -1,4 +1,5 @@
 ﻿using CDTSharp;
+using System.Diagnostics;
 
 namespace CDTSharpConsole
 {
@@ -10,15 +11,27 @@ namespace CDTSharpConsole
         {
             CDTInput input = new CDTInput()
             {
-                Refine = false,
+                Refine = true,
                 KeepConvex = false,
+                MaxArea = 155,
                 Polygons = new List<CDTPolygon>()
                 {
-                    new CDTPolygon(Square(0, 0, 10))
+                    new CDTPolygon(Circle(0, 0, 55, 36))
+                    {
+                        Holes = new List<List<Vec2>>()
+                        {
+                            //Square(23, 20, 11),
+                        }
+                    }
                 }
             };
 
+            Stopwatch sw = new Stopwatch();
+            sw.Start();
             var cdt = new CDT().Triangulate(input);
+            sw.Stop();
+            Console.WriteLine(sw.ElapsedMilliseconds + " ms");
+            Console.WriteLine();
 
             Console.WriteLine(cdt.ToSvg());
         }
