@@ -3,41 +3,39 @@
     public readonly struct Polygon
     {
         public readonly int index;
-        public readonly Vec2[] vertices;
-        public readonly Rect rect;
+        public readonly List<int> indices;
 
-        public Polygon(int index, Vec2[] vertices)
+        public Polygon(int index, List<int> vertices)
         {
-            this.vertices = new Vec2[vertices.Length];
+            this.index = index;
+            this.indices = vertices;
+        }
 
+        public Rect Bounds(List<Vec2> verts)
+        {
             double minX, minY, maxX, maxY;
             minX = minY = double.MaxValue;
             maxX = maxY = double.MinValue;
-            for (int i = 0; i < vertices.Length; i++)
+            foreach (int index in indices)
             {
-                Vec2 v = vertices[i];
-                this.vertices[i] = v;
-
-                var (x, y) = v;
+                var (x, y) = verts[index];
                 if (x < minX) minX = x;
                 if (y < minY) minY = y;
                 if (x > maxX) maxX = x;
                 if (y > maxY) maxY = y;
             }
-            this.rect = new Rect(minX, minY, maxX, maxY);
+            return new Rect(minX, minY, maxX, maxY);
         }
 
-        public bool Contains(double x, double y, double tolerance = 0)
+        public bool Contains(List<Vec2> vertices, double x, double y, double tolerance = 0)
         {
-            if (!rect.Contains(x, y)) return false;
-
-            Vec2[] verts = vertices;
-            int count = verts.Length;
+            List<Vec2>? verts = vertices;
+            int count = verts.Count;
             bool inside = false;
             for (int i = 0, j = count - 1; i < count; j = i++)
             {
-                double xi = verts[i].x, yi = verts[i].y;
-                double xj = verts[j].x, yj = verts[j].y;
+                var (xi, yi) = verts[indices[i]];
+                var (xj, yj) = verts[indices[j]];
 
                 bool crosses = (yi > y + tolerance) != (yj > y + tolerance);
                 if (!crosses) continue;
