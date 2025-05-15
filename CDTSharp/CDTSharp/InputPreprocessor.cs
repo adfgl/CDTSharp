@@ -101,12 +101,16 @@ namespace CDTSharp
                 AddPoint(_vertices, item, eps);
             }
 
+            HashSet<Segment> seen = new HashSet<Segment>();
             foreach (Constraint item in constraints)
             {
                 var (a, b) = item;
                 int ai = AddPoint(_vertices, a, eps);
                 int bi = AddPoint(_vertices, b, eps);
-                _constraints.Add((ai, bi)); 
+                if (seen.Add(new Segment(ai, bi)))
+                {
+                    _constraints.Add((ai, bi));
+                }
             }
         }
 
