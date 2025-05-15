@@ -5,10 +5,10 @@
         public readonly int index;
         public readonly List<int> indices;
 
-        public Polygon(int index, List<int> vertices)
+        public Polygon(int index, List<int> indices)
         {
             this.index = index;
-            this.indices = vertices;
+            this.indices = indices;
         }
 
         public Rect Bounds(List<Vec2> verts)

@@ -22,10 +22,16 @@ namespace CDTSharp
             _constraints = new List<(int, int)>();
             _polygons = new List<(Polygon, Polygon[])>();
 
-
+            for (int i = 0; i < input.Polygons.Count; i++)
+            {
+                ProcessPolygon(i, input.Polygons[i], eps);
+            }
         }
 
         public CDTInput Input => _input;
+        public IReadOnlyList<Vec2> Vertices => _vertices;
+        public IReadOnlyList<(int a, int b)> Constraints => _constraints;
+        public IReadOnlyList<(Polygon, Polygon[])> Polygons => _polygons;
 
         void ProcessPolygon(int index, CDTPolygon cdtPolygon, double eps)
         {
@@ -83,7 +89,35 @@ namespace CDTSharp
 
             CleanConstraints(constraints, contour, holeContours, eps);
 
-            
+            Polygon contourPoly = BuildPolygon(index, contour.Item1, eps);
+            List<Polygon> holePolygons = new List<Polygon>(holeContours.Count);
+            foreach (var item in holeContours)
+            {
+                holePolygons.Add(BuildPolygon(-1, item.Item1, eps));
+            }
+
+            foreach (var item in pointConstraints)
+            {
+                AddPoint(_vertices, item, eps);
+            }
+
+            foreach (Constraint item in constraints)
+            {
+                var (a, b) = item;
+                int ai = AddPoint(_vertices, a, eps);
+                int bi = AddPoint(_vertices, b, eps);
+                _constraints.Add((ai, bi)); 
+            }
+        }
+
+        Polygon BuildPolygon(int index, List<Vec2> points, double eps)
+        {
+            List<int> indices = new List<int>(points.Count);
+            foreach (var item in points)
+            {
+                indices.Add(AddPoint(_vertices, item, eps));
+            }
+            return new Polygon(index, indices);
         }
 
         void CleanConstraints(List<Constraint> constraints, (List<Vec2>, Rect) contour, List<(List<Vec2>, Rect)> holeContours, double eps)
@@ -326,7 +360,7 @@ namespace CDTSharp
         }
 
 
-        public int Add(List<Vec2> all, Vec2 v, double eps = 0)
+        public int AddPoint(List<Vec2> all, Vec2 v, double eps = 0)
         {
             int index = IndexOf(all, v, eps);
             if (index < 0)
