@@ -13,7 +13,7 @@ namespace CDTSharpConsole
             {
                 Refine = true,
                 KeepConvex = false,
-                MaxArea = 22,
+                MaxArea = 5,
                 MinAngle = 33,
                 Polygons = new List<CDTPolygon>()
                 {

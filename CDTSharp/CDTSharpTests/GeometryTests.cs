@@ -169,7 +169,7 @@ namespace CDTSharpTests
         }
 
         [Fact]
-        public void QuadIsConvex_ReturnsTrueWhenTrulyConvex()
+        public void QuadIsConvex_ReturnsTrueWhenTrulyConvex_CW()
         {
             Vec2 v0 = new Vec2(-1, 0);
             Vec2 v1 = new Vec2(0, +1);
@@ -177,6 +177,17 @@ namespace CDTSharpTests
             Vec2 v3 = new Vec2(0, -1);
 
             Assert.True(ConvexQuad(v0, v1, v2, v3));
+        }
+
+        [Fact]
+        public void QuadIsConvex_ReturnsTrueWhenTrulyConvex_CCW()
+        {
+            Vec2 v0 = new Vec2(-1, 0);
+            Vec2 v1 = new Vec2(0, +1);
+            Vec2 v2 = new Vec2(+1, 0);
+            Vec2 v3 = new Vec2(0, -1);
+
+            Assert.True(ConvexQuad(v3, v2, v1, v0));
         }
 
         [Fact]
@@ -249,21 +260,21 @@ namespace CDTSharpTests
         public void OnSegment_InTheCenter()
         {
             Vec2 start = new Vec2(0, 0), end = new Vec2(0, 50);
-            Assert.True(OnSegment(new Vec2(0, 25), start, end));
+            Assert.True(OnSegment(new Vec2(0, 25), start, end, 0));
         }
 
         [Fact]
         public void OnSegment_OnStart()
         {
             Vec2 start = new Vec2(0, 0), end = new Vec2(0, 50);
-            Assert.True(OnSegment(start, start, end));
+            Assert.True(OnSegment(start, start, end, 0));
         }
 
         [Fact]
         public void OnSegment_OnEnd()
         {
             Vec2 start = new Vec2(0, 0), end = new Vec2(0, 50);
-            Assert.True(OnSegment(end, start, end));
+            Assert.True(OnSegment(end, start, end, 0));
         }
     }
 }

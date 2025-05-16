@@ -39,7 +39,6 @@
                 Refine(input.MaxArea, input.MinAngle / 180d * Math.PI);
             }
             FinalizeMesh(input.KeepConvex);
-
             return this;
         }
 
@@ -85,7 +84,7 @@
         {
             int a = seg.a;
             int b = seg.b;
-            Circle circle = seg.circle;
+            Circle circle = new Circle(_vertices[a], _vertices[b]);
             for (int i = 0; i < _vertices.Count; i++)
             {
                 if (i == a || i == b) continue;
@@ -117,7 +116,7 @@
                     {
                         int a = tri.indices[j];
                         int b = tri.indices[Triangle.NEXT[j]];
-                        Segment seg = new Segment(a, b, new Circle(_vertices[a], _vertices[b]));
+                        Segment seg = new Segment(a, b);
                         if (seenSegments.Add(seg))
                         {
                             segmentQueue.Enqueue(seg);
@@ -129,7 +128,6 @@
                     triangleQueue.Enqueue(i);
             }
 
-            // Main refinement loop
             while (segmentQueue.Count > 0 || triangleQueue.Count > 0)
             {
                 // STEP 1: Handle encroached segments (highest priority)
@@ -147,19 +145,15 @@
 
                     // Insert midpoint
                     Vec2 mid = Vec2.MidPoint(a, b);
-                    int vi = _vertices.Count;
-                    _vertices.Add(mid);
-
                     var (triIndex, edgeIndex) = FindContaining(mid);
                     if (edgeIndex == NO_INDEX)
                         throw new Exception("Midpoint not on any edge.");
 
-                    SplitEdge(triIndex, edgeIndex, vi);
-                    Legalize();
+                    int vi = Insert(mid, triIndex, edgeIndex);
 
                     // Enqueue new subsegments
-                    var s1 = new Segment(seg.a, vi, new Circle(a, mid));
-                    var s2 = new Segment(vi, seg.b, new Circle(mid, b));
+                    Segment s1 = new Segment(seg.a, vi);
+                    Segment s2 = new Segment(vi, seg.b);
                     if (seenSegments.Add(s1)) segmentQueue.Enqueue(s1);
                     if (seenSegments.Add(s2)) segmentQueue.Enqueue(s2);
                     continue;
@@ -169,30 +163,26 @@
                 if (triangleQueue.Count > 0)
                 {
                     int triIndex = triangleQueue.Dequeue();
-                    if (triIndex >= _triangles.Count)
-                    {
-                        continue;
-                    }
-
                     Triangle tri = _triangles[triIndex];
-                    if (!IsBadTriangle(tri, minCos, maxArea)) continue;
-
                     Vec2 cc = new Vec2(tri.circle.x, tri.circle.y);
 
                     // Check for segment encroachment
                     bool encroaches = false;
                     foreach (Segment seg in seenSegments)
                     {
-                        if (seg.circle.Contains(cc.x, cc.y)) //  && IsVisible(cc, a, b)
+                        Circle circle = new Circle(_vertices[seg.a], _vertices[seg.b]);
+                        if (circle.Contains(cc.x, cc.y)) 
                         {
-                            segmentQueue.Enqueue(seg); // Prioritize segment split
+                            segmentQueue.Enqueue(seg); 
                             encroaches = true;
                             break;
                         }
                     }
 
                     if (encroaches)
+                    {
                         continue;
+                    }
 
                     var (tIndex, eIndex) = FindContaining(cc);
                     if (tIndex == NO_INDEX)
@@ -200,12 +190,16 @@
 
                     Insert(cc, tIndex, eIndex);
 
-                    // Recheck bad triangles (could optimize to local neighborhood)
-                    for (int i = 0; i < _triangles.Count; i++)
+                    foreach (int i in _affected)
                     {
                         if (IsBadTriangle(_triangles[i], minCos, maxArea))
                             triangleQueue.Enqueue(i);
                     }
+
+                    //for (int i = 0; i < _triangles.Count; i++)
+                    //{
+                       
+                    //}
                 }
             }
         }
@@ -231,6 +225,8 @@
 
             return minAngle < minAllowedCos || Area(a, b, c) > maxAllowedArea;
         }
+
+        readonly HashSet<int> _affected = new HashSet<int>();
 
         int Insert(Vec2 vertex, int triangle, int edge)
         {
@@ -912,23 +908,26 @@
             adj.constraint[adj.IndexOf(b, a)] = true;
         }
 
-        public int Legalize()
+        public void Legalize()
         {
             Stack<LegalizeEdge> toLegalize = _toLegalize;
             List<Vec2> vertices = _vertices;
             List<Triangle> triangles = _triangles;
 
-            int numFlips = 0;
+            _affected.Clear();
             while (toLegalize.Count > 0)
             {
                 var (triangle, edge) = toLegalize.Pop();
                 if (ShouldFlip(triangle, edge))
                 {
                     FlipEdge(triangle, edge);
-                    numFlips++;
+
+                    Triangle t0 = triangles[triangle];
+                    int t1Index = triangles[triangle].adjacent[edge];
+                    _affected.Add(t1Index);
+                    _affected.Add(triangle);
                 }
             }
-            return numFlips;
         }
 
         public LegalizeEdge FindEdge(int aIndex, int bIndex)
@@ -1037,6 +1036,12 @@
         public static double AngleCos(Vec2 a, Vec2 b, Vec2 c)
         {
             return Vec2.Dot((a - b).Normalize(), (c - b).Normalize());
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool IsClockwise(Vec2 a, Vec2 b, Vec2 c)
+        {
+            return Vec2.Cross(a, b, c) < 0;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

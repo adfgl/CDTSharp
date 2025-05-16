@@ -114,7 +114,7 @@ namespace CDTSharp
                 var (a, b) = item;
                 int ai = AddPoint(_vertices, a, eps);
                 int bi = AddPoint(_vertices, b, eps);
-                if (seen.Add(new Segment(ai, bi, new Circle())))
+                if (seen.Add(new Segment(ai, bi)))
                 {
                     _constraints.Add((ai, bi));
                 }
