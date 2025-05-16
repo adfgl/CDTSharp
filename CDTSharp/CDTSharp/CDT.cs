@@ -134,24 +134,19 @@
                 if (segmentQueue.Count > 0)
                 {
                     Segment seg = segmentQueue.Dequeue();
-                    Vec2 a = _vertices[seg.a];
-                    Vec2 b = _vertices[seg.b];
-
-                    // Check for encroachment: any vertex inside diametral circle and visible
                     if (!Encroached(seg))
                     {
                         continue;
                     }
 
-                    // Insert midpoint
+                    Vec2 a = _vertices[seg.a];
+                    Vec2 b = _vertices[seg.b];
                     Vec2 mid = Vec2.MidPoint(a, b);
                     var (triIndex, edgeIndex) = FindContaining(mid);
                     if (edgeIndex == NO_INDEX)
                         throw new Exception("Midpoint not on any edge.");
 
                     int vi = Insert(mid, triIndex, edgeIndex);
-
-                    // Enqueue new subsegments
                     Segment s1 = new Segment(seg.a, vi);
                     Segment s2 = new Segment(vi, seg.b);
                     if (seenSegments.Add(s1)) segmentQueue.Enqueue(s1);
@@ -190,16 +185,17 @@
 
                     Insert(cc, tIndex, eIndex);
 
-                    foreach (int i in _affected)
+                    //foreach (int i in _affected)
+                    //{
+                    //    if (IsBadTriangle(_triangles[i], minCos, maxArea))
+                    //        triangleQueue.Enqueue(i);
+                    //}
+
+                    for (int i = 0; i < _triangles.Count; i++)
                     {
                         if (IsBadTriangle(_triangles[i], minCos, maxArea))
                             triangleQueue.Enqueue(i);
                     }
-
-                    //for (int i = 0; i < _triangles.Count; i++)
-                    //{
-                       
-                    //}
                 }
             }
         }
@@ -209,21 +205,18 @@
         {
             if (tri.hole || tri.ContainsSuper()) return false;
 
-            Vec2 a = _vertices[tri.indices[0]];
-            Vec2 b = _vertices[tri.indices[1]];
-            Vec2 c = _vertices[tri.indices[2]];
-
-            double minAngle = double.MaxValue;
-            for (int curr = 0; curr < 3; curr++)
+            double minCos = double.MaxValue;
+            for (int i = 0; i < 3; i++)
             {
-                double angle = AngleCos(
-                    _vertices[Triangle.PREV[curr]],
-                    _vertices[curr],
-                    _vertices[Triangle.NEXT[curr]]);
-                if (minAngle > angle) minAngle = angle;
+                int prev = tri.indices[Triangle.PREV[i]];
+                int curr = tri.indices[i];
+                int next = tri.indices[Triangle.NEXT[i]];
+
+                double angleCos = AngleCos(_vertices[prev], _vertices[curr], _vertices[next]);
+                if (angleCos < minCos) minCos = angleCos;
             }
 
-            return minAngle < minAllowedCos || Area(a, b, c) > maxAllowedArea;
+            return minCos < minAllowedCos || Area(_vertices[tri.indices[0]], _vertices[tri.indices[1]], _vertices[tri.indices[2]]) > maxAllowedArea;
         }
 
         readonly HashSet<int> _affected = new HashSet<int>();
@@ -606,8 +599,8 @@
                     triangles.Add(tri);
                 }
 
-                toLegalize.Push(new LegalizeEdge(ti, 1));
-                toLegalize.Push(new LegalizeEdge(ti, 2));
+                //toLegalize.Push(new LegalizeEdge(ti, 1));
+                //toLegalize.Push(new LegalizeEdge(ti, 2));
             }
         }
 
@@ -854,7 +847,6 @@
             int count = 0;
 
             int contained = triangles.Count - 1;
-
             while (true)
             {
                 if (count++ > max)
@@ -870,7 +862,7 @@
                     Vec2 end = vertices[tri.indices[Triangle.NEXT[i]]];
 
                     double cross = Vec2.Cross(start, end, point);
-                    if (Math.Abs(cross) < tolerance  && OnSegment(start, end, point, tolerance))
+                    if (Math.Abs(cross) < tolerance && OnSegment(start, end, point, tolerance))
                     {
                         return (contained, i);
                     }
@@ -922,7 +914,6 @@
                 {
                     FlipEdge(triangle, edge);
 
-                    Triangle t0 = triangles[triangle];
                     int t1Index = triangles[triangle].adjacent[edge];
                     _affected.Add(t1Index);
                     _affected.Add(triangle);

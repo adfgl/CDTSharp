@@ -13,11 +13,11 @@ namespace CDTSharpConsole
             {
                 Refine = true,
                 KeepConvex = false,
-                MaxArea = 5,
+                MaxArea = 55,
                 MinAngle = 33,
                 Polygons = new List<CDTPolygon>()
                 {
-                    new CDTPolygon(Square(0, 0, 100))
+                    new CDTPolygon(Circle(0, 0, 100, 4))
                     {
                         Holes = new List<List<Vec2>>()
                         {
@@ -34,10 +34,10 @@ namespace CDTSharpConsole
             Console.WriteLine(sw.ElapsedMilliseconds + " ms");
             Console.WriteLine(cdt.Triangles.Count);
 
-            foreach (var item in cdt.Triangles)
-            {
-                Console.WriteLine(item);
-            }
+            //foreach (var item in cdt.Triangles)
+            //{
+            //    Console.WriteLine(item);
+            //}
             
             Console.WriteLine();
 
