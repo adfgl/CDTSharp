@@ -10,7 +10,7 @@
 
         public readonly Circle circle;
         public readonly int[] indices, adjacent;
-        public readonly bool[] constraints;
+        public readonly bool[] constraint;
         public bool hole;
         public int parent;
 
@@ -24,7 +24,7 @@
             this.circle = circle;
             this.indices = [v0, v1, v2];
             this.adjacent = [adj0, adj1, adj2];
-            this.constraints = [con0, con1, con2];
+            this.constraint = [con0, con1, con2];
             this.hole = hole;
             this.parent = parent;
         }

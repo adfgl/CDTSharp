@@ -9,9 +9,11 @@ namespace CDTSharp
     public readonly struct Segment : IEquatable<Segment>
     {
         public readonly int a, b;
+        public readonly Circle circle;
 
-        public Segment(int a, int b)
+        public Segment(int a, int b, Circle circle)
         {
+            this.circle = circle;   
             if (a < b)
             {
                 this.a = a;
