@@ -13,7 +13,7 @@ namespace CDTSharpConsole
             {
                 Refine = true,
                 KeepConvex = false,
-                MaxArea = 300,
+                MaxArea = 150,
                 MinAngle = 22.7,
                 Polygons = new List<CDTPolygon>()
                 {
@@ -21,10 +21,10 @@ namespace CDTSharpConsole
                     {
                         //Points = [new Vec2(-11, 10), new Vec2(20, 15)],
 
-                        Holes = new List<List<Vec2>>()
-                        {
-                            //Circle(0, 0, 15, 16),
-                        },
+                        //Holes = new List<List<Vec2>>()
+                        //{
+                        //    Circle(0, 0, 15, 16),
+                        //},
 
                         //Constraints = [(new Vec2(-60, 0), new Vec2(60, 0))]
                     }

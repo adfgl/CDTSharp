@@ -5,7 +5,7 @@
 
     public class CDT
     {
-        public const double EPS = 1e-12;
+        public const double EPS = 1e-6;
         public const int NO_INDEX = -1;
 
         readonly List<Vec2> _v = new List<Vec2>();
@@ -36,7 +36,7 @@
 
             if (input.Refine)
             {
-                Refine(input.MaxArea, input.MinAngle / 180d * Math.PI);
+                Refine(input.MaxArea, input.MinAngle);
             }
 
             FinalizeMesh(input.KeepConvex);
@@ -87,9 +87,14 @@
             Vec2 mid = Vec2.MidPoint(_v[seg.a], _v[seg.b]);
             foreach (Segment s in segments)
             {
-                if ((s.a == seg.a && s.b == seg.b) || (s.a == seg.b && s.b == seg.a)) continue;
+                if (s.Equals(seg))
+                    continue;
+
                 if (!Intersect(mid, point, _v[s.a], _v[s.b]).IsNaN())
+                {
                     return false;
+                }
+                  
             }
             return true;
         }
@@ -112,17 +117,15 @@
             return false;
         }
 
-        public void Refine(double maxArea, double minAngleRad)
+        public void Refine(double maxArea, double minAngle)
         {
-            double minCos = Math.Cos(minAngleRad);
-
             Queue<Segment> segmentQueue = new Queue<Segment>();
             Queue<int> triangleQueue = new Queue<int>();
             HashSet<Segment> segments = new HashSet<Segment>();
             for (int i = 0; i < _t.Count; i++)
             {
                 Triangle tri = _t[i];
-                if (IsBadTriangle(tri, minCos, maxArea))
+                if (IsBadTriangle(tri, minAngle, maxArea))
                     triangleQueue.Enqueue(i);
 
                 for (int j = 0; j < 3; j++)
@@ -154,33 +157,37 @@
                     Vec2 mid = new Vec2(diam.x, diam.y);
                     var (triIndex, edgeIndex) = FindContaining(mid, EPS);
                     if (edgeIndex == NO_INDEX)
+                    {
+                        //FinalizeMesh();
+                        //Console.WriteLine(this.ToSvg());
+
                         throw new Exception("Midpoint not on any edge.");
+                    }
+                        
 
                     int insertedIndex = Insert(mid, triIndex, edgeIndex);
 
                     segments.Remove(seg);
                     Segment s1 = new Segment(ia, insertedIndex);
-                    if (segments.Add(s1) && Enchrouched(s1))
-                    {
-                        segmentQueue.Enqueue(s1);
-                    }
-
                     Segment s2 = new Segment(insertedIndex, ib);
-                    if (segments.Add(s2) && Enchrouched(s2))
-                    {
-                        segmentQueue.Enqueue(s2);
-                    }
+
+                    segments.Add(s1);
+                    segments.Add(s2);
+
+                    if (Enchrouched(s1)) segmentQueue.Enqueue(s1);
+                    if (Enchrouched(s2)) segmentQueue.Enqueue(s2);
                     continue;
                 }
 
-                triangleQueue.Clear();
+
                 for (int i = 0; i < _t.Count; i++)
                 {
-                    if (IsBadTriangle(_t[i], minCos, maxArea))
+                    if (IsBadTriangle(_t[i], minAngle, maxArea))
                     {
                         triangleQueue.Enqueue(i);
                     }
                 }
+
 
                 if (triangleQueue.Count > 0)
                 {
@@ -196,7 +203,6 @@
                         {
                             segmentQueue.Enqueue(seg); 
                             encroaches = true;
-                            break;
                         }
                     }
 
@@ -205,6 +211,7 @@
                     var (tIndex, eIndex) = FindContaining(cc, EPS);
                     if (tIndex == NO_INDEX)
                     {
+                        continue;
                         throw new Exception("Could not locate triangle for circumcenter.");
                     }
                     
@@ -220,47 +227,30 @@
                         {
                             Segment s1 = new Segment(a, vi);
                             Segment s2 = new Segment(vi, b);
+
                             segments.Add(s1);
                             segments.Add(s2);
 
-                            if (Enchrouched(s1))
-                            {
-                                segmentQueue.Enqueue(s1);
-                            }
-
-                            if (Enchrouched(s2))
-                            {
-                                segmentQueue.Enqueue(s2);
-                            }
+                            if (Enchrouched(s1)) segmentQueue.Enqueue(s1);
+                            if (Enchrouched(s2)) segmentQueue.Enqueue(s2);
                         }
                     }
                     else
                     {
-                        triangleQueue.Clear();
                         for (int i = 0; i < _t.Count; i++)
                         {
-                            if (IsBadTriangle(_t[i], minCos, maxArea))
+                            if (IsBadTriangle(_t[i], minAngle, maxArea))
                             {
                                 triangleQueue.Enqueue(i);
                             }
                         }
                     }
-
-           
-
-                    //triangleQueue.Clear();
-                    //foreach (var i in _affected)
-                    //{
-                    //    if (IsBadTriangle(_t[i], minCos, maxArea))
-                    //    {
-                    //        triangleQueue.Enqueue(i);
-                    //    }
-                    //}
                 }
+
             }
         }
 
-        public bool IsBadTriangle(Triangle tri, double minAllowedRad, double maxAllowedArea)
+        public bool IsBadTriangle(Triangle tri, double minAllowedDeg, double maxAllowedArea)
         {
             if (tri.hole || tri.ContainsSuper()) return false;
 
@@ -271,8 +261,14 @@
                 int curr = tri.indices[i];
                 int next = tri.indices[Triangle.NEXT[i]];
 
-                double angleCos = Angle(_v[prev], _v[curr], _v[next]);
-                if (angleCos < minRad) minRad = angleCos;
+                double deg = Angle(_v[prev], _v[curr], _v[next]) * 180d / Math.PI;
+
+                //if (deg < minAllowedDeg)
+                //{
+                //    return true;
+                //}
+
+                if (deg < minRad) minRad = deg;
             }
 
             return Area(_v[tri.indices[0]], _v[tri.indices[1]], _v[tri.indices[2]]) > maxAllowedArea;
