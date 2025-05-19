@@ -42,16 +42,7 @@ namespace CDTSharp
 
         public bool OnEdge(Vec2 v, double eps)
         {
-            Vec2 ab = b - a;
-            Vec2 ap = v - a;
-            if (Math.Abs(Vec2.Cross(ab, ap)) > eps)
-                return false;
-
-            double dot = ap.x * ab.x + ap.y * ab.y;
-            if (dot < -eps || dot > ab.x * ab.x + ab.y * ab.y + eps)
-                return false;
-
-            return true;
+            return CDT.OnSegment(a, b, v, eps);
         }
     }
 }

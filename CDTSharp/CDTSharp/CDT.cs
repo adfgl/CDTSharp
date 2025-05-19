@@ -101,6 +101,24 @@
             return true;
         }
 
+        bool Enchrouched(Segment seg)
+        {
+            var (a, b) = seg;
+            Circle diam = new Circle(_v[a], _v[b]);
+
+            for (int i = 0; i < _v.Count; i++)
+            {
+                if (a == i || b == i) continue;
+
+                var v = _v[i];
+                if (diam.Contains(v.x, v.y))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         public void Refine(double maxArea, double minAngleRad)
         {
             double minCos = Math.Cos(minAngleRad);
@@ -116,15 +134,14 @@
 
                 for (int j = 0; j < 3; j++)
                 {
-                    if (tri.constraint[j])
+                    if (!tri.constraint[j]) continue;
+
+                    int a = tri.indices[j];
+                    int b = tri.indices[Triangle.NEXT[j]];
+                    Segment seg = new Segment(a, b);
+                    if (segments.Add(seg) && Enchrouched(seg))
                     {
-                        int a = tri.indices[j];
-                        int b = tri.indices[Triangle.NEXT[j]];
-                        Segment seg = new Segment(a, b);
-                        if (segments.Add(seg))
-                        {
-                            segmentQueue.Enqueue(seg);
-                        }
+                        segmentQueue.Enqueue(seg);
                     }
                 }
             }
@@ -135,52 +152,51 @@
                 {
                     Segment seg = segmentQueue.Dequeue();
                     var (ia, ib) = seg;
-                    Circle c = new Circle(_v[ia], _v[ib]);
 
-                    Vec2 mid = new Vec2(c.x, c.y);
+                    Vec2 a = _v[ia];
+                    Vec2 b = _v[ib];
+
+                    Circle diam = new Circle(a, b);
+
+                    Vec2 mid = new Vec2(diam.x, diam.y);
                     var (triIndex, edgeIndex) = FindContaining(mid, EPS);
                     if (edgeIndex == NO_INDEX)
                         throw new Exception("Midpoint not on any edge.");
 
-                    bool enchouched = false;
-                    TriangleWalker walker = new TriangleWalker(_t, triIndex, ia);
-                    do
-                    {
-                        Triangle current = _t[walker.Current];
-                        for (int i = 0; i < 3; i++)
-                        {
-                            int vvi = current.indices[i];
-                            if (ia == vvi || ib == vvi) continue;
-
-                            Vec2 v = _v[vvi];
-                            if (c.Contains(v.x, v.y) && IsVisibleFromInterior(segments, seg, v))
-                            {
-                                enchouched = true;
-                                break;
-                            }
-                        }
-
-
-                    } while (walker.MoveNextCW());
-
-
-                    if (!enchouched) continue;
-
-                    int vi = Insert(mid, triIndex, edgeIndex);
-                    if (vi == NO_INDEX) continue;
+                    int insertedIndex = Insert(mid, triIndex, edgeIndex);
 
                     segments.Remove(seg);
-                    Segment s1 = new Segment(ia, vi);
-                    Segment s2 = new Segment(vi, ib);
-                    if (segments.Add(s1)) segmentQueue.Enqueue(s1);
-                    if (segments.Add(s2)) segmentQueue.Enqueue(s2);
+                    Segment s1 = new Segment(ia, insertedIndex);
+                    if (segments.Add(s1) && Enchrouched(s1))
+                    {
+                        segmentQueue.Enqueue(s1);
+                    }
+
+                    Segment s2 = new Segment(insertedIndex, ib);
+                    if (segments.Add(s2) && Enchrouched(s2))
+                    {
+                        segmentQueue.Enqueue(s2);
+                    }
                     continue;
+                }
+
+                triangleQueue.Clear();
+                foreach (var i in _affected)
+                {
+                    if (IsBadTriangle(_t[i], minCos, maxArea))
+                    {
+                        triangleQueue.Enqueue(i);
+                    }
                 }
 
                 if (triangleQueue.Count > 0)
                 {
                     int triIndex = triangleQueue.Dequeue();
                     Triangle tri = _t[triIndex];
+                    if (tri.ContainsSuper())
+                    {
+                        throw new Exception();
+                    }
 
                     Vec2 cc = new Vec2(tri.circle.x, tri.circle.y);
 
@@ -188,7 +204,7 @@
                     foreach (Segment seg in segments)
                     {
                         Circle diam = new Circle(_v[seg.a], _v[seg.b]);
-                        if (diam.Contains(cc.x, cc.y) && IsVisibleFromInterior(segments, seg, cc)) 
+                        if (diam.Contains(cc.x, cc.y) && IsVisibleFromInterior(segments, seg, cc))
                         {
                             segmentQueue.Enqueue(seg); 
                             encroaches = true;
@@ -201,14 +217,10 @@
                     var (tIndex, eIndex) = FindContaining(cc, EPS);
                     if (tIndex == NO_INDEX)
                     {
-                        continue;
                         throw new Exception("Could not locate triangle for circumcenter.");
                     }
-                        
                     
                     int vi = Insert(cc, tIndex, eIndex);
-                    if (vi == NO_INDEX) continue;
-
                     if (eIndex != NO_INDEX)
                     {
                         Triangle t = _t[tIndex]; 
@@ -222,15 +234,27 @@
                             Segment s2 = new Segment(vi, b);
                             segments.Add(s1);
                             segments.Add(s2);
-                            segmentQueue.Enqueue(s1);
-                            segmentQueue.Enqueue(s2);
+
+                            if (Enchrouched(s1))
+                            {
+                                segmentQueue.Enqueue(s1);
+                            }
+
+                            if (Enchrouched(s2))
+                            {
+                                segmentQueue.Enqueue(s2);
+                            }
                         }
                     }
 
+
+                    triangleQueue.Clear();
                     foreach (var i in _affected)
                     {
                         if (IsBadTriangle(_t[i], minCos, maxArea))
+                        {
                             triangleQueue.Enqueue(i);
+                        }
                     }
                 }
             }
@@ -285,11 +309,6 @@
 
         int Insert(Vec2 vertex, int triangle, int edge)
         {
-            if (IsTooCloseToNeighbors(vertex, triangle, EPS))
-            {
-                return NO_INDEX;
-            }
-
             int vertexindex = _v.Count;
             _v.Add(vertex);
 
@@ -804,19 +823,15 @@
 
         public void Legalize()
         {
-            Stack<LegalizeEdge> toLegalize = _toLegalize;
-            List<Vec2> vertices = _v;
-            List<Triangle> triangles = _t;
-
             _affected.Clear();
-            while (toLegalize.Count > 0)
+            while (_toLegalize.Count > 0)
             {
-                var (triangle, edge) = toLegalize.Pop();
+                var (triangle, edge) = _toLegalize.Pop();
                 if (ShouldFlip(triangle, edge))
                 {
                     FlipEdge(triangle, edge);
 
-                    int t1Index = triangles[triangle].adjacent[edge];
+                    int t1Index = _t[triangle].adjacent[edge];
                     _affected.Add(t1Index);
                     _affected.Add(triangle);
                 }

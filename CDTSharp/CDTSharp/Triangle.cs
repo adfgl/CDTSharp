@@ -67,7 +67,7 @@
 
         public override string ToString()
         {
-            return $"{String.Join(' ', indices.Select(i => i))} ({String.Join(' ', adjacent)})";
+            return $"{(ContainsSuper() ? "[super] " : "")} {String.Join(' ', indices.Select(i => i))} ({String.Join(' ', adjacent)})";
         }
     }
 }

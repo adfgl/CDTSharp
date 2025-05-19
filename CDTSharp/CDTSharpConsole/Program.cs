@@ -11,22 +11,22 @@ namespace CDTSharpConsole
         {
             CDTInput input = new CDTInput()
             {
-                Refine = false,
+                Refine = true,
                 KeepConvex = false,
                 MaxArea = 155,
                 MinAngle = 33.33,
                 Polygons = new List<CDTPolygon>()
                 {
-                    new CDTPolygon(Circle(0, 0, 30, 16))
+                    new CDTPolygon(Square(0, 0, 30))
                     {
-                        Points = [new Vec2(-28, 0)],
+                        //Points = [new Vec2(-11, 10), new Vec2(20, 15)],
 
-                        Holes = new List<List<Vec2>>()
-                        {
-                            Circle(0, 0, 5, 16),
-                        },
+                        //Holes = new List<List<Vec2>>()
+                        //{
+                        //    Circle(0, 0, 5, 16),
+                        //},
 
-                        Constraints = [(new Vec2(0, 5), new Vec2(30, -6))]
+                        //Constraints = [(new Vec2(-60, 0), new Vec2(60, 0))]
                     }
                 }
             };
