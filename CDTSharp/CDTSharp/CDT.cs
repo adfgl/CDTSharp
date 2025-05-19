@@ -9,14 +9,14 @@
         public const double EPS = 1e-6;
         public const int NO_INDEX = -1;
 
-        readonly List<Vec2> _vertices = new List<Vec2>();
-        readonly List<Triangle> _triangles = new List<Triangle>();
+        readonly List<Vec2> _v = new List<Vec2>();
+        readonly List<Triangle> _t = new List<Triangle>();
         readonly Stack<LegalizeEdge> _toLegalize = new Stack<LegalizeEdge>();
 
         public CDT Triangulate(CDTInput input)
         {
-            _vertices.Clear();
-            _triangles.Clear();
+            _v.Clear();
+            _t.Clear();
 
             InputPreprocessor processed = new InputPreprocessor(input);
 
@@ -40,7 +40,7 @@
                 Refine(input.MaxArea, input.MinAngle / 180d * Math.PI);
             }
 
-            foreach (var item in _triangles)
+            foreach (var item in _t)
             {
                 if (!IsClockwise(item))
                 {
@@ -54,20 +54,20 @@
 
         public bool IsClockwise(Triangle t)
         {
-            Vec2 a = _vertices[t.indices[0]];
-            Vec2 b = _vertices[t.indices[1]];
-            Vec2 c = _vertices[t.indices[2]];
+            Vec2 a = _v[t.indices[0]];
+            Vec2 b = _v[t.indices[1]];
+            Vec2 c = _v[t.indices[2]];
             return IsClockwise(a, b, c);
         }
 
-        public List<Vec2> Vertices => _vertices;
-        public List<Triangle> Triangles => _triangles;
+        public List<Vec2> Vertices => _v;
+        public List<Triangle> Triangles => _t;
 
         void MarkHoles(List<(Polygon, Polygon[])> polys, List<Vec2> vertices)
         {
-            for (int i = 0; i < _triangles.Count; i++)
+            for (int i = 0; i < _t.Count; i++)
             {
-                Triangle t = _triangles[i];
+                Triangle t = _t[i];
                 if (t.ContainsSuper()) continue;
 
                 var (x, y) = Center(t);
@@ -86,7 +86,7 @@
                                 break;
                             }
                         }
-                        _triangles[i] = t;
+                        _t[i] = t;
                         break;
                     }
                 }
@@ -95,19 +95,19 @@
 
         Vec2 Center(Triangle t)
         {
-            return (_vertices[t.indices[0]] + _vertices[t.indices[1]] + _vertices[t.indices[2]]) / 3;
+            return (_v[t.indices[0]] + _v[t.indices[1]] + _v[t.indices[2]]) / 3;
         }
 
         public bool Encroached(Segment seg)
         {
             int a = seg.a;
             int b = seg.b;
-            Circle circle = new Circle(_vertices[a], _vertices[b]);
-            for (int i = 0; i < _vertices.Count; i++)
+            Circle circle = new Circle(_v[a], _v[b]);
+            for (int i = 0; i < _v.Count; i++)
             {
                 if (i == a || i == b) continue;
 
-                Vec2 v = _vertices[i];
+                Vec2 v = _v[i];
                 if (circle.Contains(v.x, v.y)) //  && IsVisible(v, a, b)
                 {
                     return true;
@@ -125,9 +125,9 @@
             HashSet<Segment> seenSegments = new();
 
             // Step 1: Collect constrained segments and initially bad triangles
-            for (int i = 0; i < _triangles.Count; i++)
+            for (int i = 0; i < _t.Count; i++)
             {
-                Triangle tri = _triangles[i];
+                Triangle tri = _t[i];
                 for (int j = 0; j < 3; j++)
                 {
                     if (tri.constraint[j])
@@ -157,8 +157,8 @@
                         continue;
                     }
 
-                    Vec2 a = _vertices[seg.a];
-                    Vec2 b = _vertices[seg.b];
+                    Vec2 a = _v[seg.a];
+                    Vec2 b = _v[seg.b];
                     Vec2 mid = Vec2.MidPoint(a, b);
                     var (triIndex, edgeIndex) = FindContaining(mid, EPS);
                     if (edgeIndex == NO_INDEX)
@@ -176,14 +176,14 @@
                 if (triangleQueue.Count > 0)
                 {
                     int triIndex = triangleQueue.Dequeue();
-                    Triangle tri = _triangles[triIndex];
+                    Triangle tri = _t[triIndex];
                     Vec2 cc = new Vec2(tri.circle.x, tri.circle.y);
 
                     // Check for segment encroachment
                     bool encroaches = false;
                     foreach (Segment seg in seenSegments)
                     {
-                        Circle circle = new Circle(_vertices[seg.a], _vertices[seg.b]);
+                        Circle circle = new Circle(_v[seg.a], _v[seg.b]);
                         if (circle.Contains(cc.x, cc.y)) 
                         {
                             segmentQueue.Enqueue(seg); 
@@ -205,7 +205,7 @@
 
                     foreach (int i in _affected)
                     {
-                        if (IsBadTriangle(_triangles[i], minCos, maxArea))
+                        if (IsBadTriangle(_t[i], minCos, maxArea))
                             triangleQueue.Enqueue(i);
                     }
                 }
@@ -224,19 +224,19 @@
                 int curr = tri.indices[i];
                 int next = tri.indices[Triangle.NEXT[i]];
 
-                double angleCos = AngleCos(_vertices[prev], _vertices[curr], _vertices[next]);
+                double angleCos = AngleCos(_v[prev], _v[curr], _v[next]);
                 if (angleCos < minCos) minCos = angleCos;
             }
 
-            return minCos < minAllowedCos || Area(_vertices[tri.indices[0]], _vertices[tri.indices[1]], _vertices[tri.indices[2]]) > maxAllowedArea;
+            return minCos < minAllowedCos || Area(_v[tri.indices[0]], _v[tri.indices[1]], _v[tri.indices[2]]) > maxAllowedArea;
         }
 
         readonly HashSet<int> _affected = new HashSet<int>();
 
         int Insert(Vec2 vertex, int triangle, int edge)
         {
-            int vertexindex = _vertices.Count;
-            _vertices.Add(vertex);
+            int vertexindex = _v.Count;
+            _v.Add(vertex);
 
             if (edge == NO_INDEX)
             {
@@ -261,30 +261,30 @@
             Vec2 b = new Vec2(midx, midy + scale * dmax);
             Vec2 c = new Vec2(midx + scale * dmax, midy - dmax);
 
-            _vertices.Add(a);
-            _vertices.Add(b);
-            _vertices.Add(c);
+            _v.Add(a);
+            _v.Add(b);
+            _v.Add(c);
 
-            _triangles.Add(new Triangle(new Circle(a, b, c), 0, 1, 2));
+            _t.Add(new Triangle(new Circle(a, b, c), 0, 1, 2));
         }
 
         public void FinalizeMesh(bool keepConvex = false)
         {
             // Step 1: Remove supertriangle vertices
-            _vertices.RemoveRange(0, 3);
+            _v.RemoveRange(0, 3);
 
             // Step 2: Build remapping of triangle indices while compacting
             Dictionary<int, int> remap = new();
             int write = 0;
 
-            for (int read = 0; read < _triangles.Count; read++)
+            for (int read = 0; read < _t.Count; read++)
             {
-                Triangle tri = _triangles[read];
+                Triangle tri = _t[read];
                 bool discard = tri.ContainsSuper() || (!keepConvex && tri.hole);
 
                 if (!discard)
                 {
-                    _triangles[write] = tri;
+                    _t[write] = tri;
                     remap[read] = write;
                     write++;
                 }
@@ -296,27 +296,27 @@
                         int twinIndex = tri.adjacent[i];
                         if (twinIndex == NO_INDEX) continue;
 
-                        Triangle twin = _triangles[twinIndex];
+                        Triangle twin = _t[twinIndex];
                         int a = tri.indices[i];
                         int b = tri.indices[Triangle.NEXT[i]];
                         int edgeInTwin = twin.IndexOf(b, a);
                         if (edgeInTwin != NO_INDEX)
                         {
                             twin.adjacent[edgeInTwin] = NO_INDEX;
-                            _triangles[twinIndex] = twin;
+                            _t[twinIndex] = twin;
                         }
                     }
                 }
             }
 
             // Remove leftover triangles at the end
-            if (write < _triangles.Count)
-                _triangles.RemoveRange(write, _triangles.Count - write);
+            if (write < _t.Count)
+                _t.RemoveRange(write, _t.Count - write);
 
             // Step 3: Remap indices and adjacency
-            for (int i = 0; i < _triangles.Count; i++)
+            for (int i = 0; i < _t.Count; i++)
             {
-                Triangle tri = _triangles[i];
+                Triangle tri = _t[i];
 
                 for (int j = 0; j < 3; j++)
                 {
@@ -328,7 +328,7 @@
                     tri.adjacent[j] = remap.TryGetValue(oldAdj, out int newAdj) ? newAdj : NO_INDEX;
                 }
 
-                _triangles[i] = tri;
+                _t[i] = tri;
             }
         }
 
@@ -392,75 +392,6 @@
             return Vec2.Cross(a, b, c) * Vec2.Cross(c, d, a) >= 0;
         }
 
-        public void SplitBoundaryEdge(int triangleIndex, int edgeIndex, int vertexIndex)
-        {
-            List<Vec2> vertices = _vertices;
-            List<Triangle> triangles = _triangles;
-            Stack<LegalizeEdge> toLegalize = _toLegalize;
-
-            /*
-                        v1                          v1            
-                        /\                          /|\             
-                       /  \                        / | \           
-                      /    \                      /  |  \          
-                 e01 /      \ e12            e01 /   |   \ e12     
-                    /   t0   \                  /    |    \        
-                   /          \                / t0  |  t1 \       
-                  /            \              /      |      \      
-              v0 +--------------+ v2      v0 +-------+-------+ v2  
-            */
-
-            Triangle t0 = triangles[triangleIndex];
-
-            int i0 = t0.indices[Triangle.NEXT[edgeIndex]];
-            int i1 = t0.indices[Triangle.PREV[edgeIndex]];
-            int i2 = t0.indices[edgeIndex];
-
-            int e01 = Triangle.NEXT[edgeIndex];
-            int e12 = Triangle.PREV[edgeIndex];
-
-            int newIndex = triangles.Count;
-
-            bool constrained = t0.constraint[edgeIndex];
-            Vec2 v0 = vertices[vertexIndex];
-
-            Triangle new0 = new Triangle(
-                new Circle(v0, vertices[i0], vertices[i1]),
-                i0, i1, vertexIndex,
-                t0.adjacent[e01], newIndex, NO_INDEX,
-                t0.constraint[e01], false, constrained
-            );
-
-            Triangle new1 = new Triangle(
-                new Circle(v0, vertices[i1], vertices[i2]),
-                i1, i2, vertexIndex,
-                t0.adjacent[e12], NO_INDEX, triangleIndex,
-                t0.constraint[e12], constrained, false
-            );
-
-            int adjndex;
-
-            adjndex = new0.adjacent[0];
-            if (adjndex != NO_INDEX)
-            {
-                Triangle adj = triangles[adjndex];
-                adj.adjacent[adj.IndexOf(i1, i0)] = triangleIndex;
-            }
-
-            adjndex = new1.adjacent[0];
-            if (adjndex != NO_INDEX)
-            {
-                Triangle adj = triangles[adjndex];
-                adj.adjacent[adj.IndexOf(i2, i1)] = newIndex;
-            }
-
-            triangles[triangleIndex] = new0;
-            triangles.Add(new1);
-
-            toLegalize.Push(new LegalizeEdge(triangleIndex, 0));
-            toLegalize.Push(new LegalizeEdge(newIndex, 0));
-        }
-
         public int[] GetQuad(int triangleIndex, int edgeIndex, out Triangle t0, out Triangle t1)
         {
             /*
@@ -483,8 +414,8 @@
                         v3           
             */
 
-            t0 = _triangles[triangleIndex];
-            t1 = _triangles[t0.adjacent[edgeIndex]];
+            t0 = _t[triangleIndex];
+            t1 = _t[t0.adjacent[edgeIndex]];
 
             int i0 = t0.indices[Triangle.NEXT[edgeIndex]];
             int i1 = t0.indices[Triangle.PREV[edgeIndex]];
@@ -520,9 +451,9 @@
 
             Triangle t0, t1;
             int[] inds = GetQuad(triangleIndex, edgeIndex, out t0, out t1);
-            int[] tris = [triangleIndex, t0.adjacent[edgeIndex], _triangles.Count, _triangles.Count + 1];
+            int[] tris = [triangleIndex, t0.adjacent[edgeIndex], _t.Count, _t.Count + 1];
 
-            Vec2 v = _vertices[vertexIndex];
+            Vec2 v = _v[vertexIndex];
             for (int i = 0; i < 4; i++)
             {
                 int ia = inds[i];
@@ -531,7 +462,7 @@
                 Triangle donor = i < 2 ? t0 : t1;
                 int edge = donor.IndexOf(ia, ib);
 
-                Triangle newTri = new Triangle(new Circle(_vertices[ia], _vertices[ib], v),
+                Triangle newTri = new Triangle(new Circle(_v[ia], _v[ib], v),
                     ia, ib, vertexIndex,
                     donor.adjacent[edge], tris[NEXT4[i]], tris[PREV4[i]],
                     donor.constraint[edge], false, false,
@@ -541,17 +472,18 @@
                 int adjIndex = newTri.adjacent[0];
                 if (adjIndex != NO_INDEX)
                 {
-                    Triangle adj = _triangles[adjIndex];
+                    Triangle adj = _t[adjIndex];
                     adj.adjacent[adj.IndexOf(ib, ia)] = triIndex;
+                    _toLegalize.Push(new LegalizeEdge(triIndex, 0));
                 }
 
-                if (triIndex < _triangles.Count)
+                if (triIndex < _t.Count)
                 {
-                    _triangles[triIndex] = newTri;
+                    _t[triIndex] = newTri;
                 }
                 else
                 {
-                    _triangles.Add(newTri);
+                    _t.Add(newTri);
                 }
             }
 
@@ -579,91 +511,46 @@
                           v3                        v3
             */
 
-            Stack<LegalizeEdge> toLegalize = _toLegalize;
-            List<Vec2> vertices = _vertices;
-            List<Triangle> triangles = _triangles;
+            Triangle tri0, tri1;
+            int[] inds = GetQuad(triangleIndex, edgeIndex, out tri0, out tri1);
 
-            int e20 = edgeIndex;
-            int t0Index = triangleIndex;
-            Triangle t0 = triangles[t0Index];
+            int t0 = triangleIndex;
+            int t1 = tri0.adjacent[edgeIndex];
 
-            int i0 = t0.indices[Triangle.NEXT[e20]];
-            int i1 = t0.indices[Triangle.PREV[e20]];
-            int i2 = t0.indices[e20];
+            int a = inds[3], b = inds[1], c = inds[2];
+            _t[t0] = new Triangle(new Circle(_v[a], _v[b], _v[c]), a, b, c, t1, parent: tri0.parent, hole: tri0.hole);
 
-            int t1Index = t0.adjacent[e20];
-            Triangle t1 = triangles[t1Index];
+            a = inds[1]; b = inds[3]; c = inds[0];
+            _t[t1] = new Triangle(new Circle(_v[a], _v[b], _v[c]), a, b, c, t0, parent: tri1.parent, hole: tri1.hole);
 
-            int e02 = t1.IndexOf(i0, i2);
-            int i3 = t1.indices[Triangle.PREV[e02]];
-
-            int e01 = Triangle.NEXT[e20];
-            int e12 = Triangle.PREV[e20];
-            int e23 = Triangle.NEXT[e02];
-            int e30 = Triangle.PREV[e02];
-
-            Vec2 v0 = _vertices[i0];
-            Vec2 v1 = _vertices[i1];
-            Vec2 v2 = _vertices[i2];
-            Vec2 v3 = _vertices[i3];
-
-            int adjIndex;
-
-            Triangle new0 = new Triangle(
-                new Circle(v3, v1, v2), i3, i1, i2,
-                t1Index, t0.adjacent[e12], t1.adjacent[e23],
-                false, t0.constraint[e12], t1.constraint[e23],
-                t0.hole, t0.parent);
-
-            Triangle new1 = new Triangle(
-                new Circle(v1, v3, v0), i1, i3, i0,
-                triangleIndex, t1.adjacent[e30], t0.adjacent[e01],
-                false, t1.constraint[e30], t0.constraint[e01],
-                t1.hole, t1.parent);
-
-      
-            adjIndex = t0.adjacent[e12];
-            if (adjIndex != NO_INDEX)
+            for (int i = 0; i < 4; i++)
             {
-                Triangle adj = triangles[adjIndex];
-                adj.adjacent[adj.IndexOf(i2, i1)] = t0Index;
-                toLegalize.Push(new LegalizeEdge(t0Index, 1));
-            }
+                Triangle donor = i < 2 ? tri0 : tri1;
+                int tri = (i == 1 || i == 2) ? t0 : t1;
+                Triangle target = _t[tri];
 
-            adjIndex = t1.adjacent[e23];
-            if (adjIndex != NO_INDEX)
-            {
-                Triangle adj = triangles[adjIndex];
-                adj.adjacent[adj.IndexOf(i3, i2)] = t0Index;
-                toLegalize.Push(new LegalizeEdge(t0Index, 2));
-            }
+                int aa = inds[i];
+                int bb = inds[NEXT4[i]];
+                int donorEdge = donor.IndexOf(aa, bb);
+                int targetEdge = target.IndexOf(aa, bb);
+                target.constraint[targetEdge] = donor.constraint[donorEdge];
 
-            adjIndex = t0.adjacent[e01];
-            if (adjIndex != NO_INDEX)
-            {
-                Triangle adj = triangles[adjIndex];
-                adj.adjacent[adj.IndexOf(i1, i0)] = t1Index;
-                toLegalize.Push(new LegalizeEdge(t1Index, 2));
-            }
+                int adjIndex = donor.adjacent[donorEdge];
+                if (adjIndex == NO_INDEX) continue;
 
-            adjIndex = t1.adjacent[e30];
-            if (adjIndex != NO_INDEX)
-            {
-                Triangle adj = triangles[adjIndex];
-                adj.adjacent[adj.IndexOf(i0, i3)] = t1Index;
-                toLegalize.Push(new LegalizeEdge(t1Index, 1));
-            }
+                Triangle adj = _t[adjIndex];
+                adj.adjacent[adj.IndexOf(bb, aa)] = tri;
 
-            triangles[triangleIndex] = new0;
-            triangles[t1Index] = new1;
+                target.adjacent[targetEdge] = adjIndex;
+            }
         }
 
         public void SplitTriangle(int triangleIndex, int vertexIndex)
         {
-            Triangle t = _triangles[triangleIndex];
-            int lastTriangle = _triangles.Count;
+            Triangle t = _t[triangleIndex];
+            int lastTriangle = _t.Count;
             int[] triIndices = [triangleIndex, lastTriangle, lastTriangle + 1];
-            Vec2 v0 = _vertices[vertexIndex];
+            Vec2 v0 = _v[vertexIndex];
 
             for (int curr = 0; curr < 3; curr++)
             {
@@ -677,27 +564,27 @@
 
                 if (adjIndex != NO_INDEX)
                 {
-                    Triangle adj = _triangles[adjIndex];
+                    Triangle adj = _t[adjIndex];
                     adj.adjacent[adj.IndexOf(b, a)] = triIndex;
 
                     _toLegalize.Push(new LegalizeEdge(triIndex, 0));
                 }
 
                 Triangle newTri = new Triangle(
-                    new Circle(v0, _vertices[a], _vertices[b]),
+                    new Circle(v0, _v[a], _v[b]),
                     a, b, vertexIndex,
                     adjIndex, triIndices[next], triIndices[prev],
                     t.constraint[curr], false, false,
                     t.hole, t.parent
                 );
 
-                if (triIndex < _triangles.Count)
+                if (triIndex < _t.Count)
                 {
-                    _triangles[triangleIndex] = newTri;
+                    _t[triangleIndex] = newTri;
                 }
                 else
                 {
-                    _triangles.Add(newTri);
+                    _t.Add(newTri);
                 }
 
                 _toLegalize.Push(new LegalizeEdge(triIndex, 1));
@@ -727,8 +614,8 @@
                           v3            
             */
 
-            List<Vec2> vertices = _vertices;
-            List<Triangle> triangles = _triangles;
+            List<Vec2> vertices = _v;
+            List<Triangle> triangles = _t;
 
             int e20 = edgeIndex;
             int t0Index = triangleIndex;
@@ -742,11 +629,9 @@
             int i1 = t0.indices[Triangle.PREV[e20]];
             int i2 = t0.indices[e20];
 
-            int t1Index = t0.adjacent[e20];
-            Triangle t1 = triangles[t1Index];
+            Triangle t1 = triangles[t0.adjacent[e20]];
 
             int i3 = t1.indices[Triangle.PREV[t1.IndexOf(i0, i2)]];
-
             Vec2 v3 = vertices[i3];
             return
                 t0.circle.Contains(v3.x, v3.y) &&
@@ -755,8 +640,8 @@
 
         public int EntranceTriangle(int triangleIndexContainingA, int aIndex, int bIndex)
         {
-            List<Vec2> vertices = _vertices;
-            List<Triangle> triangles = _triangles;
+            List<Vec2> vertices = _v;
+            List<Triangle> triangles = _t;
 
             Vec2 vb = vertices[bIndex];
 
@@ -792,8 +677,8 @@
 
         public (int triangleIndex, int edgeIndex) FindContaining(Vec2 point, double tolerance = 1e-6)
         {
-            List<Vec2> vertices = _vertices;
-            List<Triangle> triangles = _triangles; 
+            List<Vec2> vertices = _v;
+            List<Triangle> triangles = _t; 
 
             int max = triangles.Count * 3;
             int steps = 0;
@@ -855,8 +740,8 @@
         public void Legalize()
         {
             Stack<LegalizeEdge> toLegalize = _toLegalize;
-            List<Vec2> vertices = _vertices;
-            List<Triangle> triangles = _triangles;
+            List<Vec2> vertices = _v;
+            List<Triangle> triangles = _t;
 
             _affected.Clear();
             while (toLegalize.Count > 0)
@@ -875,7 +760,7 @@
 
         public LegalizeEdge FindEdge(int aIndex, int bIndex)
         {
-            List<Triangle> triangles = _triangles;
+            List<Triangle> triangles = _t;
 
             int lastContained = NO_INDEX;
             for (int triIndex = 0; triIndex < triangles.Count; triIndex++)
@@ -916,8 +801,8 @@
                 return;
             }
 
-            List<Triangle> triangles = _triangles;
-            List<Vec2> vertices = _vertices;
+            List<Triangle> triangles = _t;
+            List<Vec2> vertices = _v;
             Stack<LegalizeEdge> legalize = _toLegalize;
 
             LegalizeEdge edge = FindEdge(aIndex, bIndex);

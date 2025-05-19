@@ -11,7 +11,7 @@ namespace CDTSharpConsole
         {
             CDTInput input = new CDTInput()
             {
-                Refine = true,
+                Refine = false,
                 KeepConvex = false,
                 MaxArea = 55,
                 MinAngle = 33,
