@@ -5,7 +5,7 @@
 
     public class CDT
     {
-        public const double EPS = 1e-6;
+        public const double EPS = 1e-12;
         public const int NO_INDEX = -1;
 
         readonly List<Vec2> _v = new List<Vec2>();
@@ -158,12 +158,8 @@
                     var (triIndex, edgeIndex) = FindContaining(mid, EPS);
                     if (edgeIndex == NO_INDEX)
                     {
-                        //FinalizeMesh();
-                        //Console.WriteLine(this.ToSvg());
-
                         throw new Exception("Midpoint not on any edge.");
                     }
-                        
 
                     int insertedIndex = Insert(mid, triIndex, edgeIndex);
 
@@ -176,20 +172,21 @@
 
                     if (Enchrouched(s1)) segmentQueue.Enqueue(s1);
                     if (Enchrouched(s2)) segmentQueue.Enqueue(s2);
+                    triangleQueue.Clear();
                     continue;
                 }
 
-
-                for (int i = 0; i < _t.Count; i++)
+                if (triangleQueue.Count == 0)
                 {
-                    if (IsBadTriangle(_t[i], minAngle, maxArea))
+                    for (int i = 0; i < _t.Count; i++)
                     {
-                        triangleQueue.Enqueue(i);
+                        if (IsBadTriangle(_t[i], minAngle, maxArea))
+                        {
+                            triangleQueue.Enqueue(i);
+                        }
                     }
                 }
-
-
-                if (triangleQueue.Count > 0)
+                else
                 {
                     int triIndex = triangleQueue.Dequeue();
                     Triangle tri = _t[triIndex];
@@ -211,7 +208,6 @@
                     var (tIndex, eIndex) = FindContaining(cc, EPS);
                     if (tIndex == NO_INDEX)
                     {
-                        continue;
                         throw new Exception("Could not locate triangle for circumcenter.");
                     }
                     
@@ -235,18 +231,7 @@
                             if (Enchrouched(s2)) segmentQueue.Enqueue(s2);
                         }
                     }
-                    else
-                    {
-                        for (int i = 0; i < _t.Count; i++)
-                        {
-                            if (IsBadTriangle(_t[i], minAngle, maxArea))
-                            {
-                                triangleQueue.Enqueue(i);
-                            }
-                        }
-                    }
                 }
-
             }
         }
 
@@ -263,15 +248,16 @@
 
                 double deg = Angle(_v[prev], _v[curr], _v[next]) * 180d / Math.PI;
 
-                //if (deg < minAllowedDeg)
-                //{
-                //    return true;
-                //}
+                if (deg < minAllowedDeg)
+                {
+                    return true;
+                }
 
                 if (deg < minRad) minRad = deg;
             }
 
-            return Area(_v[tri.indices[0]], _v[tri.indices[1]], _v[tri.indices[2]]) > maxAllowedArea;
+            double area = Area(_v[tri.indices[0]], _v[tri.indices[1]], _v[tri.indices[2]]);
+            return area > maxAllowedArea;
         }
 
         readonly HashSet<int> _affected = new HashSet<int>();
@@ -324,7 +310,7 @@
             double dmax = Math.Max(rect.maxX - rect.minX, rect.maxY - rect.minY);
             double midx = (rect.maxX + rect.minX) * 0.5;
             double midy = (rect.maxY + rect.minY) * 0.5;
-            double scale = 3;
+            double scale = 100;
 
             Vec2 a = new Vec2(midx - scale * dmax, midy - scale * dmax);
             Vec2 b = new Vec2(midx, midy + scale * dmax);
