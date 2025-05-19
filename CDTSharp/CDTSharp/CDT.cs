@@ -108,12 +108,35 @@
                 if (i == a || i == b) continue;
 
                 Vec2 v = _v[i];
-                if (circle.Contains(v.x, v.y)) //  && IsVisible(v, a, b)
+                if (circle.Contains(v.x, v.y)) // 
                 {
                     return true;
                 }
             }
             return false;
+        }
+
+        bool IsVisible(Vec2 from, Vec2 to)
+        {
+            foreach (Triangle tri in _t)
+            {
+                for (int i = 0; i < 3; i++)
+                {
+                    if (!tri.constraint[i]) continue;
+
+                    int u = tri.indices[i];
+                    int v = tri.indices[Triangle.NEXT[i]];
+
+                    Vec2 p1 = _v[u];
+                    Vec2 p2 = _v[v];
+
+                    if (!Intersect(from, to, p1, p2).IsNaN())
+                    {
+                        return false; // obstructed
+                    }
+                }
+            }
+            return true; // no constraint in the way
         }
 
         public void Refine(double maxArea, double minAngleRad)
@@ -153,7 +176,6 @@
                 {
                     Segment seg = segmentQueue.Dequeue();
                     if (!Encroached(seg)) continue;
-
                     seenSegments.Remove(seg);
 
                     var (ia, ib) = seg;
@@ -178,12 +200,10 @@
                     Triangle tri = _t[triIndex];
                     Vec2 cc = new Vec2(tri.circle.x, tri.circle.y);
 
-                    // Check for segment encroachment
                     bool encroaches = false;
                     foreach (Segment seg in seenSegments)
                     {
-                        Circle circle = new Circle(_v[seg.a], _v[seg.b]);
-                        if (circle.Contains(cc.x, cc.y)) 
+                        if (new Circle(_v[seg.a], _v[seg.b]).Contains(cc.x, cc.y)) 
                         {
                             segmentQueue.Enqueue(seg); 
                             encroaches = true;
@@ -198,14 +218,13 @@
 
                     var (tIndex, eIndex) = FindContaining(cc, EPS);
                     if (tIndex == NO_INDEX)
+                    {
+                        continue;
                         throw new Exception("Could not locate triangle for circumcenter.");
+                    }
+                        
 
                     Insert(cc, tIndex, eIndex);
-                    if (eIndex != NO_INDEX)
-                    {
-                        throw new Exception();
-                    }
-
                     foreach (int i in _affected)
                     {
                         if (IsBadTriangle(_t[i], minCos, maxArea))
@@ -469,7 +488,7 @@
                     ia, ib, vertexIndex,
                     donor.adjacent[edge], tris[NEXT4[i]], tris[PREV4[i]],
                     donor.constraint[edge], false, false,
-                    t0.hole, t0.parent);
+                    donor.hole, donor.parent);
 
                 int triIndex = tris[i];
                 int adjIndex = newTri.adjacent[0];
@@ -693,6 +712,8 @@
                 {
                     throw new Exception("Could not find containing triangle. Most likely mesh topology is invalid.");
                 }
+
+                if (contained == NO_INDEX) return (NO_INDEX, NO_INDEX);
 
                 bool inside = true;
                 Triangle tri = triangles[contained];
