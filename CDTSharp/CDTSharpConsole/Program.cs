@@ -13,18 +13,18 @@ namespace CDTSharpConsole
             {
                 Refine = true,
                 KeepConvex = false,
-                MaxArea = 155,
-                MinAngle = 33.33,
+                MaxArea = 300,
+                MinAngle = 22.7,
                 Polygons = new List<CDTPolygon>()
                 {
-                    new CDTPolygon(Square(0, 0, 30))
+                    new CDTPolygon(Circle(0, 0, 100, 6))
                     {
                         //Points = [new Vec2(-11, 10), new Vec2(20, 15)],
 
-                        //Holes = new List<List<Vec2>>()
-                        //{
-                        //    Circle(0, 0, 5, 16),
-                        //},
+                        Holes = new List<List<Vec2>>()
+                        {
+                            //Circle(0, 0, 15, 16),
+                        },
 
                         //Constraints = [(new Vec2(-60, 0), new Vec2(60, 0))]
                     }
@@ -36,18 +36,35 @@ namespace CDTSharpConsole
             var cdt = new CDT().Triangulate(input);
             sw.Stop();
             Console.WriteLine(sw.ElapsedMilliseconds + " ms");
-            Console.WriteLine(cdt.Triangles.Count);
-
-            //foreach (var item in cdt.Triangles)
-            //{
-            //    Console.WriteLine(item);
-            //}
-            
-            Console.WriteLine();
 
 
+            double minArea = double.MaxValue;
+            double maxArea = double.MinValue;
+            double avgArea = 0;
+            foreach (var item in cdt.Triangles)
+            {
+                double area = cdt.Area(item);
+                avgArea += area;
+
+                if (!cdt.Clockwise(item))
+                {
+                    throw new Exception();
+                }
+
+                if (minArea > area) minArea = area;
+                if (maxArea < area) maxArea = area;
+            }
+            avgArea /= cdt.Triangles.Count;
 
             Console.WriteLine(cdt.ToSvg());
+            Console.WriteLine();
+            Console.WriteLine("count: " + cdt.Triangles.Count);
+            Console.WriteLine("min: " + minArea);
+            Console.WriteLine("max: " + maxArea);
+            Console.WriteLine("avg: " + avgArea);
+
+
+
         }
 
         static List<Vec2> Square(double cx, double cy, double r)

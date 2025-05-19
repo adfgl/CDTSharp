@@ -43,13 +43,6 @@
             return this;
         }
 
-        public bool IsClockwise(Triangle t)
-        {
-            Vec2 a = _v[t.indices[0]];
-            Vec2 b = _v[t.indices[1]];
-            Vec2 c = _v[t.indices[2]];
-            return IsClockwise(a, b, c);
-        }
 
         public List<Vec2> Vertices => _v;
         public List<Triangle> Triangles => _t;
@@ -181,7 +174,7 @@
                 }
 
                 triangleQueue.Clear();
-                foreach (var i in _affected)
+                for (int i = 0; i < _t.Count; i++)
                 {
                     if (IsBadTriangle(_t[i], minCos, maxArea))
                     {
@@ -193,11 +186,6 @@
                 {
                     int triIndex = triangleQueue.Dequeue();
                     Triangle tri = _t[triIndex];
-                    if (tri.ContainsSuper())
-                    {
-                        throw new Exception();
-                    }
-
                     Vec2 cc = new Vec2(tri.circle.x, tri.circle.y);
 
                     bool encroaches = false;
@@ -246,37 +234,48 @@
                             }
                         }
                     }
-
-
-                    triangleQueue.Clear();
-                    foreach (var i in _affected)
+                    else
                     {
-                        if (IsBadTriangle(_t[i], minCos, maxArea))
+                        triangleQueue.Clear();
+                        for (int i = 0; i < _t.Count; i++)
                         {
-                            triangleQueue.Enqueue(i);
+                            if (IsBadTriangle(_t[i], minCos, maxArea))
+                            {
+                                triangleQueue.Enqueue(i);
+                            }
                         }
                     }
+
+           
+
+                    //triangleQueue.Clear();
+                    //foreach (var i in _affected)
+                    //{
+                    //    if (IsBadTriangle(_t[i], minCos, maxArea))
+                    //    {
+                    //        triangleQueue.Enqueue(i);
+                    //    }
+                    //}
                 }
             }
         }
 
-        public bool IsBadTriangle(Triangle tri, double minAllowedCos, double maxAllowedArea)
+        public bool IsBadTriangle(Triangle tri, double minAllowedRad, double maxAllowedArea)
         {
             if (tri.hole || tri.ContainsSuper()) return false;
 
-            double minCos = double.MaxValue;
+            double minRad = double.MaxValue;
             for (int i = 0; i < 3; i++)
             {
                 int prev = tri.indices[Triangle.PREV[i]];
                 int curr = tri.indices[i];
                 int next = tri.indices[Triangle.NEXT[i]];
 
-                double angleCos = AngleCos(_v[prev], _v[curr], _v[next]);
-                if (angleCos < minCos) minCos = angleCos;
+                double angleCos = Angle(_v[prev], _v[curr], _v[next]);
+                if (angleCos < minRad) minRad = angleCos;
             }
 
-            double area = Area(_v[tri.indices[0]], _v[tri.indices[1]], _v[tri.indices[2]]);
-            return minCos < minAllowedCos || area > maxAllowedArea;
+            return Area(_v[tri.indices[0]], _v[tri.indices[1]], _v[tri.indices[2]]) > maxAllowedArea;
         }
 
         readonly HashSet<int> _affected = new HashSet<int>();
@@ -617,19 +616,14 @@
                 if (adjIndex == NO_INDEX) continue;
 
                 Triangle adj = _t[adjIndex];
-                adj.adjacent[adj.IndexOf(bb, aa)] = tri;
+                int adjEdge = adj.IndexOf(bb, aa);
+                adj.adjacent[adjEdge] = tri;
 
                 target.adjacent[targetEdge] = adjIndex;
-
-                if (i == 2)
-                {
-                    _toLegalize.Push(new LegalizeEdge(tri, 2));
-                }
-                else if (i == 3)
-                {
-                    _toLegalize.Push(new LegalizeEdge(tri, 1));
-                }
             }
+
+            _toLegalize.Push(new LegalizeEdge(t0, 2));
+            _toLegalize.Push(new LegalizeEdge(t1, 1));
         }
 
         public void SplitTriangle(int triangleIndex, int vertexIndex)
@@ -949,13 +943,16 @@
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static double AngleCos(Vec2 a, Vec2 b, Vec2 c)
+        public static double Angle(Vec2 a, Vec2 b, Vec2 c)
         {
-            return Vec2.Dot((a - b).Normalize(), (c - b).Normalize());
+            Vec2 ab = (a - b).Normalize();
+            Vec2 cb = (c - b).Normalize();
+            double dot = Vec2.Dot(ab, cb);
+            return Math.Acos(Math.Clamp(dot, -1.0, 1.0)); // Safe clamp to avoid NaNs
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool IsClockwise(Vec2 a, Vec2 b, Vec2 c)
+        public static bool Clockwise(Vec2 a, Vec2 b, Vec2 c)
         {
             return Vec2.Cross(a, b, c) < 0;
         }
@@ -964,6 +961,22 @@
         public static double Area(Vec2 a, Vec2 b, Vec2 c)
         {
             return Math.Abs(Vec2.Cross(a, b, c)) * 0.5;
+        }
+
+        public double Area(Triangle t)
+        {
+            Vec2 a = _v[t.indices[0]];
+            Vec2 b = _v[t.indices[1]];
+            Vec2 c = _v[t.indices[2]];
+            return Area(a, b, c);
+        }
+
+        public bool Clockwise(Triangle t)
+        {
+            Vec2 a = _v[t.indices[0]];
+            Vec2 b = _v[t.indices[1]];
+            Vec2 c = _v[t.indices[2]];
+            return Clockwise(a, b, c);
         }
     }
 }
