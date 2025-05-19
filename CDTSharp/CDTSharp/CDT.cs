@@ -152,21 +152,20 @@
                 if (segmentQueue.Count > 0)
                 {
                     Segment seg = segmentQueue.Dequeue();
-                    if (!Encroached(seg))
-                    {
-                        continue;
-                    }
+                    if (!Encroached(seg)) continue;
 
-                    Vec2 a = _v[seg.a];
-                    Vec2 b = _v[seg.b];
-                    Vec2 mid = Vec2.MidPoint(a, b);
+                    seenSegments.Remove(seg);
+
+                    var (ia, ib) = seg;
+
+                    Vec2 mid = Vec2.MidPoint(_v[ia], _v[ib]);
                     var (triIndex, edgeIndex) = FindContaining(mid, EPS);
                     if (edgeIndex == NO_INDEX)
                         throw new Exception("Midpoint not on any edge.");
 
                     int vi = Insert(mid, triIndex, edgeIndex);
-                    Segment s1 = new Segment(seg.a, vi);
-                    Segment s2 = new Segment(vi, seg.b);
+                    Segment s1 = new Segment(ia, vi);
+                    Segment s2 = new Segment(vi, ib);
                     if (seenSegments.Add(s1)) segmentQueue.Enqueue(s1);
                     if (seenSegments.Add(s2)) segmentQueue.Enqueue(s2);
                     continue;
@@ -202,6 +201,10 @@
                         throw new Exception("Could not locate triangle for circumcenter.");
 
                     Insert(cc, tIndex, eIndex);
+                    if (eIndex != NO_INDEX)
+                    {
+                        throw new Exception();
+                    }
 
                     foreach (int i in _affected)
                     {
@@ -758,14 +761,22 @@
             }
         }
 
+        public LegalizeEdge FindEdgeBrute(int aIndex, int bIndex)
+        {
+            for (int i = 0; i < _t.Count; i++)
+            {
+                int edge = _t[i].IndexOf(aIndex, bIndex);
+                if (edge != NO_INDEX) return new LegalizeEdge(i, edge);
+            }
+            return new LegalizeEdge(NO_INDEX, NO_INDEX);
+        }
+
         public LegalizeEdge FindEdge(int aIndex, int bIndex)
         {
-            List<Triangle> triangles = _t;
-
             int lastContained = NO_INDEX;
-            for (int triIndex = 0; triIndex < triangles.Count; triIndex++)
+            for (int triIndex = 0; triIndex < _t.Count; triIndex++)
             {
-                Triangle tri = triangles[triIndex];
+                Triangle tri = _t[triIndex];
                 for (int edgeIndex = 0; edgeIndex < 3; edgeIndex++)
                 {
                     if (tri.indices[edgeIndex] == aIndex)
@@ -781,11 +792,11 @@
                 }
             }
 
-            TriangleWalker walker = new TriangleWalker(triangles, lastContained, aIndex);
+            TriangleWalker walker = new TriangleWalker(_t, lastContained, aIndex);
             do
             {
                 int current = walker.Current;
-                int edge = triangles[current].IndexOfInvariant(aIndex, bIndex);
+                int edge = _t[current].IndexOfInvariant(aIndex, bIndex);
                 if (edge != NO_INDEX)
                     return new LegalizeEdge(current, edge);
             }
