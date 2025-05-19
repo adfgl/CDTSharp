@@ -5,7 +5,7 @@ namespace CDTSharpTests
 {
     using static CDT;
 
-    public class GeometryTests
+    public class TopologyTests
     {
         static CDT TestCase()
         {
@@ -42,6 +42,51 @@ namespace CDTSharpTests
             cdt.Vertices.AddRange(v);
             cdt.Triangles.AddRange(t);
             return cdt;
+        }
+
+        [Fact]
+        public void FindContaining_CorrectlyFindsTriangleWhenPointIsInside()
+        {
+            CDT cdt = TestCase();
+
+            for (int i = 0; i < cdt.Triangles.Count; i++)
+            {
+                Vec2 center = Vec2.Zero;
+                foreach (var item in cdt.Triangles[i].indices)
+                {
+                    center += cdt.Vertices[item];
+                }
+                center /= 3;
+
+                (int triangleIndex, int edgeIndex) = cdt.FindContaining(center);
+
+                Assert.Equal(i, triangleIndex);
+                Assert.Equal(NO_INDEX, edgeIndex);
+            }
+        }
+
+        [Fact]
+        public void FindContaining_CorrecltlyFindsTriangleWhenPointOnEdge()
+        {
+            CDT cdt = TestCase();
+            for (int i = 0; i < cdt.Triangles.Count; i++)
+            {
+                Triangle tri = cdt.Triangles[i];
+                for (int j = 0; j < 3; j++)
+                {
+                    int a = tri.indices[j];
+                    int b = tri.indices[(j + 1) % 3];
+                    LegalizeEdge expectedA = cdt.FindEdge(a, b);
+                    LegalizeEdge expectedB = cdt.FindEdge(b, a);
+
+                    Vec2 center = (cdt.Vertices[a] + cdt.Vertices[b]) / 2;
+
+                    (int ti, int ei) = cdt.FindContaining(center);
+
+                    Assert.True(ti == expectedA.triangle ||  ti == expectedB.triangle);
+                    Assert.True(ei == expectedA.index || ei == expectedB.index);
+                }
+            }
         }
 
         [Fact]
@@ -116,19 +161,16 @@ namespace CDTSharpTests
         [Fact]
         public void TriangleSplitCenterSplitWorksCorrectlyWithNoNeighbours()
         {
-            List<Vec2> points = [new Vec2(-100, -100), new Vec2(0, 100), new Vec2(100, -100)];
-            List<Triangle> triangles = [new Triangle(new Circle(), 0, 1, 2)];
-
-            points.Add(new Vec2(0, 0));
             CDT cdt = new CDT();
-            cdt.Vertices.AddRange(points);
-            cdt.Triangles.AddRange(triangles);
+            cdt.Vertices.AddRange([new Vec2(-100, -100), new Vec2(0, 100), new Vec2(100, -100)]);
+            cdt.Triangles.AddRange([new Triangle(new Circle(), 0, 1, 2)]);
 
-            cdt.SplitTriangle(0, points.Count - 1);
+            cdt.Vertices.Add(new Vec2(0, 0));
+            cdt.SplitTriangle(0, cdt.Vertices.Count - 1);
 
-            AssertHelper.Equal(new Triangle(new Circle(), 0, 1, 3, NO_INDEX, 1, 2), triangles, 0);
-            AssertHelper.Equal(new Triangle(new Circle(), 1, 2, 3, NO_INDEX, 2, 0), triangles, 1);
-            AssertHelper.Equal(new Triangle(new Circle(), 2, 0, 3, NO_INDEX, 0, 1), triangles, 2);
+            AssertHelper.Equal(new Triangle(new Circle(), 0, 1, 3, NO_INDEX, 1, 2), cdt.Triangles, 0);
+            AssertHelper.Equal(new Triangle(new Circle(), 1, 2, 3, NO_INDEX, 2, 0), cdt.Triangles, 1);
+            AssertHelper.Equal(new Triangle(new Circle(), 2, 0, 3, NO_INDEX, 0, 1), cdt.Triangles, 2);
         }
 
         [Fact]
@@ -260,21 +302,22 @@ namespace CDTSharpTests
         public void OnSegment_InTheCenter()
         {
             Vec2 start = new Vec2(0, 0), end = new Vec2(0, 50);
-            Assert.True(OnSegment(new Vec2(0, 25), start, end, 0));
+            Vec2 center = (start + end) / 2;
+            Assert.True(OnSegment(start, end, center, 0));
         }
 
         [Fact]
         public void OnSegment_OnStart()
         {
             Vec2 start = new Vec2(0, 0), end = new Vec2(0, 50);
-            Assert.True(OnSegment(start, start, end, 0));
+            Assert.True(OnSegment(start, end, start, 0));
         }
 
         [Fact]
         public void OnSegment_OnEnd()
         {
             Vec2 start = new Vec2(0, 0), end = new Vec2(0, 50);
-            Assert.True(OnSegment(end, start, end, 0));
+            Assert.True(OnSegment(start, end, end, 0));
         }
     }
 }

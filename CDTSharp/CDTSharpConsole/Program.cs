@@ -19,6 +19,8 @@ namespace CDTSharpConsole
                 {
                     new CDTPolygon(Circle(0, 0, 100, 4))
                     {
+                        Points = [new Vec2(-85, 0)],
+
                         Holes = new List<List<Vec2>>()
                         {
                             //Square(23, 20, 11),
