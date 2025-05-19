@@ -119,9 +119,10 @@
 
         public void Refine(double maxArea, double minAngle)
         {
+            HashSet<Segment> uniqueSegments = new HashSet<Segment>();
+
             Queue<Segment> segmentQueue = new Queue<Segment>();
             Queue<int> triangleQueue = new Queue<int>();
-            HashSet<Segment> segments = new HashSet<Segment>();
             for (int i = 0; i < _t.Count; i++)
             {
                 Triangle tri = _t[i];
@@ -135,7 +136,7 @@
                     int a = tri.indices[j];
                     int b = tri.indices[Triangle.NEXT[j]];
                     Segment seg = new Segment(a, b);
-                    if (segments.Add(seg) && Enchrouched(seg))
+                    if (uniqueSegments.Add(seg) && Enchrouched(seg))
                     {
                         segmentQueue.Enqueue(seg);
                     }
@@ -163,21 +164,17 @@
 
                     int insertedIndex = Insert(mid, triIndex, edgeIndex);
 
-                    segments.Remove(seg);
+                    uniqueSegments.Remove(seg);
                     Segment s1 = new Segment(ia, insertedIndex);
                     Segment s2 = new Segment(insertedIndex, ib);
 
-                    segments.Add(s1);
-                    segments.Add(s2);
+                    uniqueSegments.Add(s1);
+                    uniqueSegments.Add(s2);
 
                     if (Enchrouched(s1)) segmentQueue.Enqueue(s1);
                     if (Enchrouched(s2)) segmentQueue.Enqueue(s2);
-                    triangleQueue.Clear();
-                    continue;
-                }
 
-                if (triangleQueue.Count == 0)
-                {
+                    triangleQueue.Clear();
                     for (int i = 0; i < _t.Count; i++)
                     {
                         if (IsBadTriangle(_t[i], minAngle, maxArea))
@@ -185,18 +182,29 @@
                             triangleQueue.Enqueue(i);
                         }
                     }
+
+                    //foreach (var item in _affected)
+                    //{
+                    //    if (IsBadTriangle(_t[item], minAngle, maxArea))
+                    //    {
+                    //        triangleQueue.Enqueue(item);
+                    //    }
+                    //}
+
+                    continue;
                 }
-                else
+
+                if (triangleQueue.Count > 0)
                 {
                     int triIndex = triangleQueue.Dequeue();
                     Triangle tri = _t[triIndex];
                     Vec2 cc = new Vec2(tri.circle.x, tri.circle.y);
 
                     bool encroaches = false;
-                    foreach (Segment seg in segments)
+                    foreach (Segment seg in uniqueSegments)
                     {
                         Circle diam = new Circle(_v[seg.a], _v[seg.b]);
-                        if (diam.Contains(cc.x, cc.y) && IsVisibleFromInterior(segments, seg, cc))
+                        if (diam.Contains(cc.x, cc.y) && IsVisibleFromInterior(uniqueSegments, seg, cc))
                         {
                             segmentQueue.Enqueue(seg); 
                             encroaches = true;
@@ -219,16 +227,33 @@
                         int b = t.indices[Triangle.NEXT[eIndex]];
 
                         Segment split = new Segment(a, b);
-                        if (segments.Remove(split))
+                        if (uniqueSegments.Remove(split))
                         {
                             Segment s1 = new Segment(a, vi);
                             Segment s2 = new Segment(vi, b);
 
-                            segments.Add(s1);
-                            segments.Add(s2);
+                            uniqueSegments.Add(s1);
+                            uniqueSegments.Add(s2);
 
                             if (Enchrouched(s1)) segmentQueue.Enqueue(s1);
                             if (Enchrouched(s2)) segmentQueue.Enqueue(s2);
+                        }
+                    }
+
+                    triangleQueue.Clear();
+                    //foreach (var item in _affected)
+                    //{
+                    //    if (IsBadTriangle(_t[item], minAngle, maxArea))
+                    //    {
+                    //        triangleQueue.Enqueue(item);
+                    //    }
+                    //}
+
+                    for (int i = 0; i < _t.Count; i++)
+                    {
+                        if (IsBadTriangle(_t[i], minAngle, maxArea))
+                        {
+                            triangleQueue.Enqueue(i);
                         }
                     }
                 }
@@ -930,7 +955,7 @@
             Vec2 ab = (a - b).Normalize();
             Vec2 cb = (c - b).Normalize();
             double dot = Vec2.Dot(ab, cb);
-            return Math.Acos(Math.Clamp(dot, -1.0, 1.0)); // Safe clamp to avoid NaNs
+            return Math.Acos(Math.Clamp(dot, -1.0, 1.0)); 
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
