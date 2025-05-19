@@ -1,12 +1,11 @@
 ﻿namespace CDTSharp
 {
     using System;
-    using System.Diagnostics;
     using System.Runtime.CompilerServices;
 
     public class CDT
     {
-        public const double EPS = 1e-6;
+        public const double EPS = 1e-12;
         public const int NO_INDEX = -1;
 
         readonly List<Vec2> _v = new List<Vec2>();
@@ -38,14 +37,6 @@
             if (input.Refine)
             {
                 Refine(input.MaxArea, input.MinAngle / 180d * Math.PI);
-            }
-
-            foreach (var item in _t)
-            {
-                if (!IsClockwise(item))
-                {
-                    throw new Exception();
-                }
             }
 
             FinalizeMesh(input.KeepConvex);
@@ -98,59 +89,31 @@
             return (_v[t.indices[0]] + _v[t.indices[1]] + _v[t.indices[2]]) / 3;
         }
 
-        public bool Encroached(Segment seg)
+        bool IsVisibleFromInterior(HashSet<Segment> segments, Segment seg, Vec2 point)
         {
-            int a = seg.a;
-            int b = seg.b;
-            Circle circle = new Circle(_v[a], _v[b]);
-            for (int i = 0; i < _v.Count; i++)
+            Vec2 mid = Vec2.MidPoint(_v[seg.a], _v[seg.b]);
+            foreach (Segment s in segments)
             {
-                if (i == a || i == b) continue;
-
-                Vec2 v = _v[i];
-                if (circle.Contains(v.x, v.y)) // 
-                {
-                    return true;
-                }
+                if ((s.a == seg.a && s.b == seg.b) || (s.a == seg.b && s.b == seg.a)) continue;
+                if (!Intersect(mid, point, _v[s.a], _v[s.b]).IsNaN())
+                    return false;
             }
-            return false;
-        }
-
-        bool IsVisible(Vec2 from, Vec2 to)
-        {
-            foreach (Triangle tri in _t)
-            {
-                for (int i = 0; i < 3; i++)
-                {
-                    if (!tri.constraint[i]) continue;
-
-                    int u = tri.indices[i];
-                    int v = tri.indices[Triangle.NEXT[i]];
-
-                    Vec2 p1 = _v[u];
-                    Vec2 p2 = _v[v];
-
-                    if (!Intersect(from, to, p1, p2).IsNaN())
-                    {
-                        return false; // obstructed
-                    }
-                }
-            }
-            return true; // no constraint in the way
+            return true;
         }
 
         public void Refine(double maxArea, double minAngleRad)
         {
             double minCos = Math.Cos(minAngleRad);
 
-            Queue<Segment> segmentQueue = new();
-            Queue<int> triangleQueue = new();
-            HashSet<Segment> seenSegments = new();
-
-            // Step 1: Collect constrained segments and initially bad triangles
+            Queue<Segment> segmentQueue = new Queue<Segment>();
+            Queue<int> triangleQueue = new Queue<int>();
+            HashSet<Segment> segments = new HashSet<Segment>();
             for (int i = 0; i < _t.Count; i++)
             {
                 Triangle tri = _t[i];
+                if (IsBadTriangle(tri, minCos, maxArea))
+                    triangleQueue.Enqueue(i);
+
                 for (int j = 0; j < 3; j++)
                 {
                     if (tri.constraint[j])
@@ -158,52 +121,74 @@
                         int a = tri.indices[j];
                         int b = tri.indices[Triangle.NEXT[j]];
                         Segment seg = new Segment(a, b);
-                        if (seenSegments.Add(seg))
+                        if (segments.Add(seg))
                         {
                             segmentQueue.Enqueue(seg);
                         }
                     }
                 }
-
-                if (IsBadTriangle(tri, minCos, maxArea))
-                    triangleQueue.Enqueue(i);
             }
 
             while (segmentQueue.Count > 0 || triangleQueue.Count > 0)
             {
-                // STEP 1: Handle encroached segments (highest priority)
                 if (segmentQueue.Count > 0)
                 {
                     Segment seg = segmentQueue.Dequeue();
-                    if (!Encroached(seg)) continue;
-                    seenSegments.Remove(seg);
-
                     var (ia, ib) = seg;
+                    Circle c = new Circle(_v[ia], _v[ib]);
 
-                    Vec2 mid = Vec2.MidPoint(_v[ia], _v[ib]);
+                    Vec2 mid = new Vec2(c.x, c.y);
                     var (triIndex, edgeIndex) = FindContaining(mid, EPS);
                     if (edgeIndex == NO_INDEX)
                         throw new Exception("Midpoint not on any edge.");
 
+                    bool enchouched = false;
+                    TriangleWalker walker = new TriangleWalker(_t, triIndex, ia);
+                    do
+                    {
+                        Triangle current = _t[walker.Current];
+                        for (int i = 0; i < 3; i++)
+                        {
+                            int vvi = current.indices[i];
+                            if (ia == vvi || ib == vvi) continue;
+
+                            Vec2 v = _v[vvi];
+                            if (c.Contains(v.x, v.y) && IsVisibleFromInterior(segments, seg, v))
+                            {
+                                enchouched = true;
+                                break;
+                            }
+                        }
+
+
+                    } while (walker.MoveNextCW());
+
+
+                    if (!enchouched) continue;
+
                     int vi = Insert(mid, triIndex, edgeIndex);
+                    if (vi == NO_INDEX) continue;
+
+                    segments.Remove(seg);
                     Segment s1 = new Segment(ia, vi);
                     Segment s2 = new Segment(vi, ib);
-                    if (seenSegments.Add(s1)) segmentQueue.Enqueue(s1);
-                    if (seenSegments.Add(s2)) segmentQueue.Enqueue(s2);
+                    if (segments.Add(s1)) segmentQueue.Enqueue(s1);
+                    if (segments.Add(s2)) segmentQueue.Enqueue(s2);
                     continue;
                 }
 
-                // STEP 2: Handle skinny triangle
                 if (triangleQueue.Count > 0)
                 {
                     int triIndex = triangleQueue.Dequeue();
                     Triangle tri = _t[triIndex];
+
                     Vec2 cc = new Vec2(tri.circle.x, tri.circle.y);
 
                     bool encroaches = false;
-                    foreach (Segment seg in seenSegments)
+                    foreach (Segment seg in segments)
                     {
-                        if (new Circle(_v[seg.a], _v[seg.b]).Contains(cc.x, cc.y)) 
+                        Circle diam = new Circle(_v[seg.a], _v[seg.b]);
+                        if (diam.Contains(cc.x, cc.y) && IsVisibleFromInterior(segments, seg, cc)) 
                         {
                             segmentQueue.Enqueue(seg); 
                             encroaches = true;
@@ -211,10 +196,7 @@
                         }
                     }
 
-                    if (encroaches)
-                    {
-                        continue;
-                    }
+                    if (encroaches) continue;
 
                     var (tIndex, eIndex) = FindContaining(cc, EPS);
                     if (tIndex == NO_INDEX)
@@ -223,9 +205,29 @@
                         throw new Exception("Could not locate triangle for circumcenter.");
                     }
                         
+                    
+                    int vi = Insert(cc, tIndex, eIndex);
+                    if (vi == NO_INDEX) continue;
 
-                    Insert(cc, tIndex, eIndex);
-                    foreach (int i in _affected)
+                    if (eIndex != NO_INDEX)
+                    {
+                        Triangle t = _t[tIndex]; 
+                        int a = t.indices[eIndex];
+                        int b = t.indices[Triangle.NEXT[eIndex]];
+
+                        Segment split = new Segment(a, b);
+                        if (segments.Remove(split))
+                        {
+                            Segment s1 = new Segment(a, vi);
+                            Segment s2 = new Segment(vi, b);
+                            segments.Add(s1);
+                            segments.Add(s2);
+                            segmentQueue.Enqueue(s1);
+                            segmentQueue.Enqueue(s2);
+                        }
+                    }
+
+                    foreach (var i in _affected)
                     {
                         if (IsBadTriangle(_t[i], minCos, maxArea))
                             triangleQueue.Enqueue(i);
@@ -233,7 +235,6 @@
                 }
             }
         }
-
 
         public bool IsBadTriangle(Triangle tri, double minAllowedCos, double maxAllowedArea)
         {
@@ -250,13 +251,45 @@
                 if (angleCos < minCos) minCos = angleCos;
             }
 
-            return minCos < minAllowedCos || Area(_v[tri.indices[0]], _v[tri.indices[1]], _v[tri.indices[2]]) > maxAllowedArea;
+            double area = Area(_v[tri.indices[0]], _v[tri.indices[1]], _v[tri.indices[2]]);
+            return minCos < minAllowedCos || area > maxAllowedArea;
         }
 
         readonly HashSet<int> _affected = new HashSet<int>();
 
+        bool IsTooCloseToNeighbors(Vec2 toInsert, int triangleIndex, double proximity)
+        {
+            Triangle tri = _t[triangleIndex];
+
+            for (int i = 0; i < 3; i++)
+            {
+                Vec2 v = _v[tri.indices[i]];
+                if (v.AlmostEqual(toInsert, proximity))
+                    return true;
+
+                int adjIndex = tri.adjacent[i];
+                if (adjIndex != NO_INDEX)
+                {
+                    Triangle adj = _t[adjIndex];
+                    for (int j = 0; j < 3; j++)
+                    {
+                        v = _v[adj.indices[j]];
+                        if (v.AlmostEqual(toInsert, proximity))
+                            return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
         int Insert(Vec2 vertex, int triangle, int edge)
         {
+            if (IsTooCloseToNeighbors(vertex, triangle, EPS))
+            {
+                return NO_INDEX;
+            }
+
             int vertexindex = _v.Count;
             _v.Add(vertex);
 
@@ -277,11 +310,11 @@
             double dmax = Math.Max(rect.maxX - rect.minX, rect.maxY - rect.minY);
             double midx = (rect.maxX + rect.minX) * 0.5;
             double midy = (rect.maxY + rect.minY) * 0.5;
-            double scale = 5;
+            double scale = 3;
 
-            Vec2 a = new Vec2(midx - scale * dmax, midy - dmax);
+            Vec2 a = new Vec2(midx - scale * dmax, midy - scale * dmax);
             Vec2 b = new Vec2(midx, midy + scale * dmax);
-            Vec2 c = new Vec2(midx + scale * dmax, midy - dmax);
+            Vec2 c = new Vec2(midx + scale * dmax, midy - scale * dmax);
 
             _v.Add(a);
             _v.Add(b);
@@ -492,6 +525,10 @@
 
                 int triIndex = tris[i];
                 int adjIndex = newTri.adjacent[0];
+
+                _toLegalize.Push(new LegalizeEdge(triIndex, 1));
+                _toLegalize.Push(new LegalizeEdge(triIndex, 2));
+
                 if (adjIndex != NO_INDEX)
                 {
                     Triangle adj = _t[adjIndex];
@@ -564,6 +601,15 @@
                 adj.adjacent[adj.IndexOf(bb, aa)] = tri;
 
                 target.adjacent[targetEdge] = adjIndex;
+
+                if (i == 2)
+                {
+                    _toLegalize.Push(new LegalizeEdge(tri, 2));
+                }
+                else if (i == 3)
+                {
+                    _toLegalize.Push(new LegalizeEdge(tri, 1));
+                }
             }
         }
 
@@ -636,13 +682,10 @@
                           v3            
             */
 
-            List<Vec2> vertices = _v;
-            List<Triangle> triangles = _t;
-
             int e20 = edgeIndex;
-            int t0Index = triangleIndex;
-            Triangle t0 = triangles[t0Index];
-            if (t0.hole || t0Index == NO_INDEX || t0.constraint[e20])
+            Triangle t0 = _t[triangleIndex];
+            int t1Index = t0.adjacent[e20];
+            if (t0.hole || t1Index == NO_INDEX || t0.constraint[e20])
             {
                 return false;
             }
@@ -651,13 +694,13 @@
             int i1 = t0.indices[Triangle.PREV[e20]];
             int i2 = t0.indices[e20];
 
-            Triangle t1 = triangles[t0.adjacent[e20]];
+            Triangle t1 = _t[t1Index];
 
             int i3 = t1.indices[Triangle.PREV[t1.IndexOf(i0, i2)]];
-            Vec2 v3 = vertices[i3];
+            Vec2 v3 = _v[i3];
             return
                 t0.circle.Contains(v3.x, v3.y) &&
-                ConvexQuad(vertices[i0], vertices[i1], vertices[i2], v3);
+                ConvexQuad(_v[i0], _v[i1], _v[i2], v3);
         }
 
         public int EntranceTriangle(int triangleIndexContainingA, int aIndex, int bIndex)
@@ -691,8 +734,6 @@
                 }
             }
             while (walker.MoveNextCW());
-
-            Console.WriteLine(this.ToSvg()); ;
 
             throw new Exception("Could not find entrance triangle.");
         }
