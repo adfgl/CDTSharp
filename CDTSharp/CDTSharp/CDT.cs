@@ -1,6 +1,7 @@
 ﻿namespace CDTSharp
 {
     using System;
+    using System.Reflection;
     using System.Runtime.CompilerServices;
 
     public class CDT
@@ -36,7 +37,7 @@
 
             if (input.Refine)
             {
-                Refine(input.MaxArea, input.MinAngle);
+                Refine(processed, input.MaxArea, input.MinAngle);
             }
 
             FinalizeMesh(input.KeepConvex);
@@ -117,7 +118,7 @@
             return false;
         }
 
-        public void Refine(double maxArea, double minAngle)
+        public void Refine(InputPreprocessor polys, double maxArea, double minAngle)
         {
             HashSet<Segment> uniqueSegments = new HashSet<Segment>();
 
@@ -143,8 +144,10 @@
                 }
             }
 
-            while (segmentQueue.Count > 0 || triangleQueue.Count > 0)
+            while (segmentQueue.Count > 0 || triangleQueue.Count > 0 || _affected.Count > 0)
             {
+                _affected.Clear();
+
                 if (segmentQueue.Count > 0)
                 {
                     Segment seg = segmentQueue.Dequeue();
@@ -174,23 +177,17 @@
                     if (Enchrouched(s1)) segmentQueue.Enqueue(s1);
                     if (Enchrouched(s2)) segmentQueue.Enqueue(s2);
 
-                    triangleQueue.Clear();
-                    for (int i = 0; i < _t.Count; i++)
+                    if (segmentQueue.Count == 0)
                     {
-                        if (IsBadTriangle(_t[i], minAngle, maxArea))
+                        triangleQueue.Clear();
+                        for (int i = 0; i < _t.Count; i++)
                         {
-                            triangleQueue.Enqueue(i);
+                            if (IsBadTriangle(_t[i], minAngle, maxArea))
+                            {
+                                triangleQueue.Enqueue(i);
+                            }
                         }
                     }
-
-                    //foreach (var item in _affected)
-                    //{
-                    //    if (IsBadTriangle(_t[item], minAngle, maxArea))
-                    //    {
-                    //        triangleQueue.Enqueue(item);
-                    //    }
-                    //}
-
                     continue;
                 }
 
@@ -198,7 +195,10 @@
                 {
                     int triIndex = triangleQueue.Dequeue();
                     Triangle tri = _t[triIndex];
+
                     Vec2 cc = new Vec2(tri.circle.x, tri.circle.y);
+
+                    if (!polys.ContainsContour(cc)) continue;
 
                     bool encroaches = false;
                     foreach (Segment seg in uniqueSegments)
@@ -206,7 +206,7 @@
                         Circle diam = new Circle(_v[seg.a], _v[seg.b]);
                         if (diam.Contains(cc.x, cc.y) && IsVisibleFromInterior(uniqueSegments, seg, cc))
                         {
-                            segmentQueue.Enqueue(seg); 
+                            segmentQueue.Enqueue(seg);
                             encroaches = true;
                         }
                     }
@@ -216,13 +216,15 @@
                     var (tIndex, eIndex) = FindContaining(cc, EPS);
                     if (tIndex == NO_INDEX)
                     {
+                        FinalizeMesh();
+                        Console.WriteLine(this.ToSvg());
                         throw new Exception("Could not locate triangle for circumcenter.");
                     }
-                    
+
                     int vi = Insert(cc, tIndex, eIndex);
                     if (eIndex != NO_INDEX)
                     {
-                        Triangle t = _t[tIndex]; 
+                        Triangle t = _t[tIndex];
                         int a = t.indices[eIndex];
                         int b = t.indices[Triangle.NEXT[eIndex]];
 
@@ -241,14 +243,6 @@
                     }
 
                     triangleQueue.Clear();
-                    //foreach (var item in _affected)
-                    //{
-                    //    if (IsBadTriangle(_t[item], minAngle, maxArea))
-                    //    {
-                    //        triangleQueue.Enqueue(item);
-                    //    }
-                    //}
-
                     for (int i = 0; i < _t.Count; i++)
                     {
                         if (IsBadTriangle(_t[i], minAngle, maxArea))
@@ -318,15 +312,22 @@
             int vertexindex = _v.Count;
             _v.Add(vertex);
 
+            int[] affected;
             if (edge == NO_INDEX)
             {
-                SplitTriangle(triangle, vertexindex);
+                affected = SplitTriangle(triangle, vertexindex);
             }
             else
             {
-                SplitEdge(triangle, edge, vertexindex);
+                affected = SplitEdge(triangle, edge, vertexindex);
             }
+
             Legalize();
+
+            foreach (int i in affected)
+            {
+                _affected.Add(i);
+            }
             return vertexindex;
         }
 
@@ -335,7 +336,7 @@
             double dmax = Math.Max(rect.maxX - rect.minX, rect.maxY - rect.minY);
             double midx = (rect.maxX + rect.minX) * 0.5;
             double midy = (rect.maxY + rect.minY) * 0.5;
-            double scale = 100;
+            double scale = 5;
 
             Vec2 a = new Vec2(midx - scale * dmax, midy - scale * dmax);
             Vec2 b = new Vec2(midx, midy + scale * dmax);
@@ -507,7 +508,7 @@
 
         readonly static int[] NEXT4 = [1, 2, 3, 0], PREV4 = [3, 0, 1, 2];
 
-        public void SplitEdge(int triangleIndex, int edgeIndex, int vertexIndex)
+        public int[] SplitEdge(int triangleIndex, int edgeIndex, int vertexIndex)
         {
             /*
                         v1                          v1            
@@ -551,8 +552,8 @@
                 int triIndex = tris[i];
                 int adjIndex = newTri.adjacent[0];
 
-                _toLegalize.Push(new LegalizeEdge(triIndex, 1));
-                _toLegalize.Push(new LegalizeEdge(triIndex, 2));
+                //_toLegalize.Push(new LegalizeEdge(triIndex, 1));
+                //_toLegalize.Push(new LegalizeEdge(triIndex, 2));
 
                 if (adjIndex != NO_INDEX)
                 {
@@ -570,7 +571,7 @@
                     _t.Add(newTri);
                 }
             }
-
+            return tris;
         }
 
         public void FlipEdge(int triangleIndex, int edgeIndex)
@@ -633,7 +634,7 @@
             _toLegalize.Push(new LegalizeEdge(t1, 1));
         }
 
-        public void SplitTriangle(int triangleIndex, int vertexIndex)
+        public int[] SplitTriangle(int triangleIndex, int vertexIndex)
         {
             Triangle t = _t[triangleIndex];
             int lastTriangle = _t.Count;
@@ -678,6 +679,7 @@
                 _toLegalize.Push(new LegalizeEdge(triIndex, 1));
                 _toLegalize.Push(new LegalizeEdge(triIndex, 2));
             }
+            return triIndices;
         }
 
         public bool ShouldFlip(int triangleIndex, int edgeIndex)
@@ -827,14 +829,14 @@
             _affected.Clear();
             while (_toLegalize.Count > 0)
             {
-                var (triangle, edge) = _toLegalize.Pop();
-                if (ShouldFlip(triangle, edge))
+                var (t0, edge) = _toLegalize.Pop();
+                if (ShouldFlip(t0, edge))
                 {
-                    FlipEdge(triangle, edge);
+                    FlipEdge(t0, edge);
 
-                    int t1Index = _t[triangle].adjacent[edge];
-                    _affected.Add(t1Index);
-                    _affected.Add(triangle);
+                    _affected.Add(t0);
+                    int t1 = _t[t0].adjacent[edge];
+                    if (t1 != NO_INDEX) _affected.Add(t1);
                 }
             }
         }

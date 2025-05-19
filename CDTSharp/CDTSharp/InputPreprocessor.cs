@@ -39,6 +39,18 @@ namespace CDTSharp
         public List<(Polygon, Polygon[])> Polygons => _polygons;
         public Rect Rect => _rect;
 
+        public bool ContainsContour(Vec2 v)
+        {
+            foreach (var item in _polygons)
+            {
+                if (item.Item1.Contains(_vertices, v.x, v.y))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         Rect ProcessPolygon(int index, CDTPolygon cdtPolygon, double eps)
         {
             (List<Vec2>, Rect) contour = ExtractContour(cdtPolygon.Contour, eps);
