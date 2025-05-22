@@ -172,7 +172,14 @@
                     var (triIndex, edgeIndex) = FindContaining(mid, EPS);
                     if (edgeIndex == NO_INDEX)
                     {
-                       
+                        LegalizeEdge edge = FindEdge(ia, ib);
+                        if (edge.index == NO_INDEX)
+                        {
+                            throw new Exception($"Midpoint of segment ({ia},{ib}) not found on any edge.");
+                        }
+
+                        triIndex = edge.triangle;
+                        edgeIndex = edge.index;
                     }
 
                     int insertedIndex = Insert(mid, triIndex, edgeIndex);
@@ -306,7 +313,7 @@
             _t.Add(new Triangle(new Circle(a, b, c), 0, 1, 2));
         }
 
-        void FinalizeMesh(bool keepConvex, bool keepSuper)
+        public void FinalizeMesh(bool keepConvex = false, bool keepSuper = false)
         {
             if (!keepSuper)
             {
@@ -680,23 +687,19 @@
 
         public int EntranceTriangle(int triangleIndexContainingA, int aIndex, int bIndex)
         {
-            List<Vec2> vertices = _v;
-            List<Triangle> triangles = _t;
-
-            Vec2 vb = vertices[bIndex];
-
-            TriangleWalker walker = new TriangleWalker(triangles, triangleIndexContainingA, aIndex);
-            Triangle tri = triangles[walker.Current];
+            Vec2 vb = _v[bIndex];
+            TriangleWalker walker = new TriangleWalker(_t, triangleIndexContainingA, aIndex);
             do
             {
+                Triangle tri = _t[walker.Current];
                 int toRightCount = 0;
                 for (int i = 0; i < 3; i++)
                 {
                     int a = tri.indices[i];
                     int b = tri.indices[Triangle.NEXT[i]];
-                    //if (a == aIndex || b == aIndex)
+                    if (a == aIndex || b == aIndex)
                     {
-                        if (Vec2.Cross(vertices[a], vertices[b], vb) <= 0)
+                        if (Vec2.Cross(_v[a], _v[b], vb) <= 0)
                         {
                             toRightCount++;
                         }
