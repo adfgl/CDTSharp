@@ -195,8 +195,7 @@ namespace CDTSharp
                     if (existing.OnNode(a1, eps) || existing.OnNode(a2, eps))
                         continue;
 
-                    Vec2 inter = CDT.Intersect(a1, a2, b1, b2);
-                    if (!inter.IsNaN())
+                    if (CDT.Intersect(a1, a2, b1, b2, out Vec2 inter))
                     {
                         constraints.RemoveAt(i);
                         var (c1a, c1b) = current.Split(inter);

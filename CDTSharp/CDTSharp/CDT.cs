@@ -97,7 +97,7 @@
                 if (s.Equals(seg))
                     continue;
 
-                if (!Intersect(mid, point, _v[s.a], _v[s.b]).IsNaN())
+                if (Intersect(mid, point, _v[s.a], _v[s.b], out _))
                 {
                     return false;
                 }
@@ -172,14 +172,15 @@
                     var (triIndex, edgeIndex) = FindContaining(mid, EPS);
                     if (edgeIndex == NO_INDEX)
                     {
-                        LegalizeEdge edge = FindEdge(ia, ib);
-                        if (edge.index == NO_INDEX)
-                        {
-                            throw new Exception($"Midpoint of segment ({ia},{ib}) not found on any edge.");
-                        }
+                        Console.WriteLine(a);
+                        Console.WriteLine(b);
 
-                        triIndex = edge.triangle;
-                        edgeIndex = edge.index;
+                        Console.WriteLine(mid);
+
+                        FinalizeMesh();
+                        Console.WriteLine(this.ToSvg()); ;
+
+                        throw new Exception($"Midpoint of segment ({ia},{ib}) not found on any edge.");
                     }
 
                     int insertedIndex = Insert(mid, triIndex, edgeIndex);
@@ -375,7 +376,7 @@
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Vec2 Intersect(Vec2 p1, Vec2 p2, Vec2 q1, Vec2 q2)
+        public static bool Intersect(Vec2 p1, Vec2 p2, Vec2 q1, Vec2 q2, out Vec2 intersection)
         {
             // P(u) = p1 + u * (p2 - p1)
             // Q(v) = q1 + v * (q2 - q1)
@@ -392,13 +393,15 @@
             // | a  b | * | u | = | e |
             // | c  d |   | v |   | f |
 
+            intersection = Vec2.NaN;
+
             double a = p2.x - p1.x, b = q1.x - q2.x;
             double c = p2.y - p1.y, d = q1.y - q2.y;
 
             double det = a * d - b * c;
             if (Math.Abs(det) < 1e-12)
             {
-                return Vec2.NaN;
+                return false;
             }
 
             double e = q1.x - p1.x, f = q1.y - p1.y;
@@ -407,9 +410,10 @@
             double v = (a * f - e * c) / det;
             if (u < 0 || u > 1 || v < 0 || v > 1)
             {
-                return Vec2.NaN;
+                return false;
             }
-            return new Vec2(p1.x + u * a, p1.y + u * c);
+            intersection = new Vec2(p1.x + u * a, p1.y + u * c);
+            return true;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -742,7 +746,7 @@
                     Vec2 b = vertices[tri.indices[Triangle.NEXT[i]]];
 
                     double cross = Vec2.Cross(a, b, point);
-                    if (Math.Abs(cross) < tolerance && OnSegment(a, b, point, tolerance))
+                    if (OnSegment(a, b, point, tolerance)) // Math.Abs(cross) < tolerance && 
                     {
                         return (current, i);
                     }
@@ -875,7 +879,7 @@
                     Vec2 q1 = vertices[currentTri.indices[i]];
                     Vec2 q2 = vertices[currentTri.indices[Triangle.NEXT[i]]];
 
-                    if (!Intersect(p1, p2, q1, q2).IsNaN())
+                    if (Intersect(p1, p2, q1, q2, out _))
                     {
                         FlipEdge(current, i);
                         MarkConstrained(triangles, current, i);

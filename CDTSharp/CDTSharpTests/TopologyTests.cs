@@ -249,7 +249,7 @@ namespace CDTSharpTests
             Vec2 p1 = new Vec2(-50, -50), p2 = new Vec2(+50, +50);
             Vec2 q1 = new Vec2(-50, +50), q2 = new Vec2(+50, -50);
 
-            Vec2 inter = Intersect(p1, p2, q1, q2);
+            Assert.True(Intersect(p1, p2, q1, q2, out Vec2 inter));
             Assert.Equal(0, inter.x);
             Assert.Equal(0, inter.y);
         }
@@ -260,7 +260,7 @@ namespace CDTSharpTests
             Vec2 p1 = new Vec2(0, -50), p2 = new Vec2(0, +50);
             Vec2 q1 = new Vec2(20, +50), q2 = new Vec2(20, -50);
 
-            Vec2 inter = Intersect(p1, p2, q1, q2);
+            Assert.False(Intersect(p1, p2, q1, q2, out Vec2 inter));
             Assert.Equal(Double.NaN, inter.x);
             Assert.Equal(Double.NaN, inter.y);
         }
@@ -271,7 +271,7 @@ namespace CDTSharpTests
             Vec2 p1 = new Vec2(0, -50), p2 = new Vec2(0, +50);
             Vec2 q1 = new Vec2(0, -25), q2 = new Vec2(0, +25);
 
-            Vec2 inter = Intersect(p1, p2, q1, q2);
+            Assert.False(Intersect(p1, p2, q1, q2, out Vec2 inter));
             Assert.Equal(Double.NaN, inter.x);
             Assert.Equal(Double.NaN, inter.y);
         }
@@ -282,7 +282,7 @@ namespace CDTSharpTests
             Vec2 p1 = new Vec2(0, -50), p2 = new Vec2(0, +50);
             Vec2 q1 = p1, q2 = new Vec2(0, -70);
 
-            Vec2 inter = Intersect(p1, p2, q1, q2);
+            Assert.False(Intersect(p1, p2, q1, q2, out Vec2 inter));
             Assert.Equal(Double.NaN, inter.x);
             Assert.Equal(Double.NaN, inter.y);
         }
@@ -293,7 +293,7 @@ namespace CDTSharpTests
             Vec2 p1 = new Vec2(0, -50), p2 = new Vec2(0, +50);
             Vec2 q1 = new Vec2(0, 0), q2 = new Vec2(50, 0);
 
-            Vec2 inter = Intersect(p1, p2, q1, q2);
+            Assert.True(Intersect(p1, p2, q1, q2, out Vec2 inter));
             Assert.Equal(q1.x, inter.x);
             Assert.Equal(q1.y, inter.y);
         }

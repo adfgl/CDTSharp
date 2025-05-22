@@ -11,7 +11,7 @@ namespace CDTSharpConsole
         {
             CDTInput input = new CDTInput()
             {
-                Refine = true,
+                Refine = false,
                 KeepConvex = false,
                 KeepSuper = false,
                 MaxArea = 25,
@@ -30,7 +30,7 @@ namespace CDTSharpConsole
                     //    //Constraints = [(new Vec2(-60, 0), new Vec2(60, 0))]
                     //},
 
-                    new CDTPolygon( StandardShapes.Star(0, 0, 60, 30, 6))
+                    new CDTPolygon([new (42.356, -18.238), new (-33.351, -20.41), new (21.132992936880783, -6.9534977796240725), new (1.71, 60.572)])
                     {
                     }
                 }
@@ -64,6 +64,8 @@ namespace CDTSharpConsole
             {
                 double area = cdt.Area(item);
                 avgArea += area;
+
+                Console.WriteLine(item);
 
                 if (!cdt.Clockwise(item))
                 {
