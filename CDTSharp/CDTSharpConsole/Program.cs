@@ -14,11 +14,11 @@ namespace CDTSharpConsole
                 Refine = true,
                 KeepConvex = false,
                 KeepSuper = false,
-                MaxArea = 5,
+                MaxArea = 25,
                 MinAngle = 33.3,
                 Polygons = new List<CDTPolygon>()
                 {
-                    new CDTPolygon(StandardShapes.Star(0, 0, 50, 26, 6))
+                    new CDTPolygon([new (232, -99), new (-33.351, - 20.41), new (1.71, 60.572)])
                     {
                         //Points = [new Vec2(-11, 10), new Vec2(20, 15)],
 

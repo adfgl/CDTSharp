@@ -18,6 +18,8 @@
         {
             _v.Clear();
             _t.Clear();
+            _affected.Clear();
+            _toLegalize.Clear();
 
             InputPreprocessor processed = new InputPreprocessor(input);
 
@@ -147,6 +149,7 @@
                 }
             }
 
+            double minSqrLen = (4.0 * maxArea) / Math.Sqrt(3) * 0.1;
             while (segmentQueue.Count > 0 || triangleQueue.Count > 0)
             {
                 _affected.Clear();
@@ -158,14 +161,25 @@
 
                     Vec2 a = _v[ia];
                     Vec2 b = _v[ib];
+                    double sqrLen = Vec2.SquareLength(a - b);
+                    if (sqrLen < minSqrLen)
+                        continue;
 
                     Circle diam = new Circle(a, b);
 
                     Vec2 mid = new Vec2(diam.x, diam.y);
+
                     var (triIndex, edgeIndex) = FindContaining(mid, EPS);
                     if (edgeIndex == NO_INDEX)
                     {
-                        throw new Exception("Midpoint not on any edge.");
+                        LegalizeEdge edge = FindEdge(ia, ib);
+                        triIndex = edge.triangle;
+                        edgeIndex = edge.index;
+
+                        if (edgeIndex == NO_INDEX)
+                        {
+                            throw new Exception("Midpoint not on any edge.");
+                        }
                     }
 
                     int insertedIndex = Insert(mid, triIndex, edgeIndex);
@@ -286,7 +300,7 @@
             double dmax = Math.Max(rect.maxX - rect.minX, rect.maxY - rect.minY);
             double midx = (rect.maxX + rect.minX) * 0.5;
             double midy = (rect.maxY + rect.minY) * 0.5;
-            double scale = 2;
+            double scale = 10;
 
             Vec2 a = new Vec2(midx - scale * dmax, midy - scale * dmax);
             Vec2 b = new Vec2(midx, midy + scale * dmax);
@@ -687,7 +701,7 @@
                 {
                     int a = tri.indices[i];
                     int b = tri.indices[Triangle.NEXT[i]];
-                    if (a == aIndex || b == aIndex)
+                    //if (a == aIndex || b == aIndex)
                     {
                         if (Vec2.Cross(vertices[a], vertices[b], vb) <= 0)
                         {
@@ -714,32 +728,33 @@
             int max = triangles.Count * 3;
             int steps = 0;
 
-            int contained = triangles.Count - 1;
+            int current = triangles.Count - 1;
             while (true)
             {
                 if (steps++ > max)
                 {
+                    Console.WriteLine(this.ToSvg(fill:false));
                     throw new Exception("Could not find containing triangle. Most likely mesh topology is invalid.");
                 }
 
-                if (contained == NO_INDEX) return (NO_INDEX, NO_INDEX);
+                if (current == NO_INDEX) return (NO_INDEX, NO_INDEX);
 
                 bool inside = true;
-                Triangle tri = triangles[contained];
+                Triangle tri = triangles[current];
                 for (int i = 0; i < 3; i++)
                 {
-                    Vec2 start = vertices[tri.indices[i]];
-                    Vec2 end = vertices[tri.indices[Triangle.NEXT[i]]];
+                    Vec2 a = vertices[tri.indices[i]];
+                    Vec2 b = vertices[tri.indices[Triangle.NEXT[i]]];
 
-                    double cross = Vec2.Cross(start, end, point);
-                    if (Math.Abs(cross) < tolerance && OnSegment(start, end, point, tolerance))
+                    double cross = Vec2.Cross(a, b, point);
+                    if (Math.Abs(cross) < tolerance && OnSegment(a, b, point, tolerance))
                     {
-                        return (contained, i);
+                        return (current, i);
                     }
 
-                    if (cross > 0)
+                    if (cross > tolerance)
                     {
-                        contained = tri.adjacent[i];
+                        current = tri.adjacent[i];
                         inside = false;
                         break;
                     }
@@ -747,7 +762,7 @@
 
                 if (inside)
                 {
-                    return (contained, NO_INDEX);
+                    return (current, NO_INDEX);
                 }
             }
         }
