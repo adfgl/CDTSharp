@@ -147,7 +147,7 @@
                 }
             }
 
-            while (segmentQueue.Count > 0 || triangleQueue.Count > 0 || _affected.Count > 0)
+            while (segmentQueue.Count > 0 || triangleQueue.Count > 0)
             {
                 _affected.Clear();
 
@@ -198,7 +198,7 @@
 
                     Vec2 cc = new Vec2(tri.circle.x, tri.circle.y);
 
-                    if (!polys.ContainsContour(cc)) continue;
+                    //if (!polys.ContainsContour(cc)) continue;
 
                     bool encroaches = false;
                     foreach (Segment seg in uniqueSegments)
@@ -220,26 +220,6 @@
                     }
 
                     int vi = Insert(cc, tIndex, eIndex);
-                    if (eIndex != NO_INDEX)
-                    {
-                        Triangle t = _t[tIndex];
-                        int a = t.indices[eIndex];
-                        int b = t.indices[Triangle.NEXT[eIndex]];
-
-                        Segment split = new Segment(a, b);
-                        if (uniqueSegments.Remove(split))
-                        {
-                            Segment s1 = new Segment(a, vi);
-                            Segment s2 = new Segment(vi, b);
-
-                            uniqueSegments.Add(s1);
-                            uniqueSegments.Add(s2);
-
-                            if (Enchrouched(s1)) segmentQueue.Enqueue(s1);
-                            if (Enchrouched(s2)) segmentQueue.Enqueue(s2);
-                        }
-                    }
-
                     foreach (var item in _affected)
                     {
                         if (IsBadTriangle(_t[item], minAngle, maxArea))
@@ -370,14 +350,9 @@
             for (int i = 0; i < _t.Count; i++)
             {
                 Triangle tri = _t[i];
-
                 for (int j = 0; j < 3; j++)
                 {
-                    if (!keepSuper)
-                    {
-                        tri.indices[j] -= 3;
-                    }
-
+                    if (!keepSuper) tri.indices[j] -= 3;
                     int oldAdj = tri.adjacent[j];
                     tri.adjacent[j] = remap.TryGetValue(oldAdj, out int newAdj) ? newAdj : NO_INDEX;
                 }

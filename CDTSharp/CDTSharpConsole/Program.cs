@@ -14,18 +14,18 @@ namespace CDTSharpConsole
                 Refine = true,
                 KeepConvex = false,
                 KeepSuper = false,
-                MaxArea = 8,
+                MaxArea = 5,
                 MinAngle = 33.3,
                 Polygons = new List<CDTPolygon>()
                 {
-                    new CDTPolygon(StandardShapes.Star(0, 0, 50, 36, 6))
+                    new CDTPolygon(StandardShapes.Star(0, 0, 50, 26, 6))
                     {
                         //Points = [new Vec2(-11, 10), new Vec2(20, 15)],
 
-                        Holes = new List<List<Vec2>>()
-                        {
-                           StandardShapes.Star(0, 0, 25, 18, 6)
-                        },
+                        //Holes = new List<List<Vec2>>()
+                        //{
+                        //   StandardShapes.Star(0, 0, 25, 18, 6)
+                        //},
 
                         //Constraints = [(new Vec2(-60, 0), new Vec2(60, 0))]
                     },
@@ -73,7 +73,7 @@ namespace CDTSharpConsole
             }
             avgArea /= cdt.Triangles.Count;
             avgAng /= 3 * cdt.Triangles.Count;
-            Console.WriteLine(cdt.ToSvg());
+            Console.WriteLine(cdt.ToSvg(fill: false));
             Console.WriteLine();
             Console.WriteLine("count: " + cdt.Triangles.Count);
             Console.WriteLine("Area min: " + minArea);
