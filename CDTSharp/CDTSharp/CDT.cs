@@ -177,15 +177,11 @@
                     if (Enchrouched(s1)) segmentQueue.Enqueue(s1);
                     if (Enchrouched(s2)) segmentQueue.Enqueue(s2);
 
-                    if (segmentQueue.Count == 0)
+                    foreach (var item in _affected)
                     {
-                        triangleQueue.Clear();
-                        for (int i = 0; i < _t.Count; i++)
+                        if (IsBadTriangle(_t[item], minAngle, maxArea))
                         {
-                            if (IsBadTriangle(_t[i], minAngle, maxArea))
-                            {
-                                triangleQueue.Enqueue(i);
-                            }
+                            triangleQueue.Enqueue(item);
                         }
                     }
                     continue;
@@ -195,6 +191,7 @@
                 {
                     int triIndex = triangleQueue.Dequeue();
                     Triangle tri = _t[triIndex];
+                    if (!IsBadTriangle(tri, minAngle, maxArea)) continue;
 
                     Vec2 cc = new Vec2(tri.circle.x, tri.circle.y);
 
@@ -242,12 +239,11 @@
                         }
                     }
 
-                    triangleQueue.Clear();
-                    for (int i = 0; i < _t.Count; i++)
+                    foreach (var item in _affected)
                     {
-                        if (IsBadTriangle(_t[i], minAngle, maxArea))
+                        if (IsBadTriangle(_t[item], minAngle, maxArea))
                         {
-                            triangleQueue.Enqueue(i);
+                            triangleQueue.Enqueue(item);
                         }
                     }
                 }
