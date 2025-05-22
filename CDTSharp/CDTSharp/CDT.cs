@@ -11,6 +11,7 @@
 
         readonly List<Vec2> _v = new List<Vec2>();
         readonly List<Triangle> _t = new List<Triangle>();
+        readonly HashSet<int> _affected = new HashSet<int>();
         readonly Stack<LegalizeEdge> _toLegalize = new Stack<LegalizeEdge>();
 
         public CDT Triangulate(CDTInput input)
@@ -39,8 +40,7 @@
             {
                 Refine(processed, input.MaxArea, input.MinAngle);
             }
-
-            FinalizeMesh(input.KeepConvex);
+            FinalizeMesh(input.KeepConvex, input.KeepSuper);
             return this;
         }
 
@@ -216,8 +216,6 @@
                     var (tIndex, eIndex) = FindContaining(cc, EPS);
                     if (tIndex == NO_INDEX)
                     {
-                        FinalizeMesh();
-                        Console.WriteLine(this.ToSvg());
                         throw new Exception("Could not locate triangle for circumcenter.");
                     }
 
@@ -278,33 +276,6 @@
             return area > maxAllowedArea;
         }
 
-        readonly HashSet<int> _affected = new HashSet<int>();
-
-        bool IsTooCloseToNeighbors(Vec2 toInsert, int triangleIndex, double proximity)
-        {
-            Triangle tri = _t[triangleIndex];
-
-            for (int i = 0; i < 3; i++)
-            {
-                Vec2 v = _v[tri.indices[i]];
-                if (v.AlmostEqual(toInsert, proximity))
-                    return true;
-
-                int adjIndex = tri.adjacent[i];
-                if (adjIndex != NO_INDEX)
-                {
-                    Triangle adj = _t[adjIndex];
-                    for (int j = 0; j < 3; j++)
-                    {
-                        v = _v[adj.indices[j]];
-                        if (v.AlmostEqual(toInsert, proximity))
-                            return true;
-                    }
-                }
-            }
-
-            return false;
-        }
 
         int Insert(Vec2 vertex, int triangle, int edge)
         {
@@ -335,7 +306,7 @@
             double dmax = Math.Max(rect.maxX - rect.minX, rect.maxY - rect.minY);
             double midx = (rect.maxX + rect.minX) * 0.5;
             double midy = (rect.maxY + rect.minY) * 0.5;
-            double scale = 5;
+            double scale = 2;
 
             Vec2 a = new Vec2(midx - scale * dmax, midy - scale * dmax);
             Vec2 b = new Vec2(midx, midy + scale * dmax);
@@ -348,16 +319,24 @@
             _t.Add(new Triangle(new Circle(a, b, c), 0, 1, 2));
         }
 
-        public void FinalizeMesh(bool keepConvex = false)
+        void FinalizeMesh(bool keepConvex, bool keepSuper)
         {
-            _v.RemoveRange(0, 3);
+            if (!keepSuper)
+            {
+                _v.RemoveRange(0, 3);
+            }
 
             Dictionary<int, int> remap = new Dictionary<int, int>();
             int write = 0;
             for (int read = 0; read < _t.Count; read++)
             {
                 Triangle tri = _t[read];
-                bool discard = tri.ContainsSuper() || (!keepConvex && tri.parent == NO_INDEX);
+
+                bool discard = false;
+                if (!keepSuper)
+                {
+                    discard = tri.ContainsSuper() || (!keepConvex && tri.parent == NO_INDEX);
+                }
 
                 if (!discard)
                 {
@@ -367,7 +346,6 @@
                 }
                 else
                 {
-                    // Unlink adjacent triangles
                     for (int i = 0; i < 3; i++)
                     {
                         int twinIndex = tri.adjacent[i];
@@ -395,16 +373,17 @@
 
                 for (int j = 0; j < 3; j++)
                 {
-                    tri.indices[j] -= 3;
+                    if (!keepSuper)
+                    {
+                        tri.indices[j] -= 3;
+                    }
 
                     int oldAdj = tri.adjacent[j];
                     tri.adjacent[j] = remap.TryGetValue(oldAdj, out int newAdj) ? newAdj : NO_INDEX;
                 }
-
                 _t[i] = tri;
             }
         }
-
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vec2 Intersect(Vec2 p1, Vec2 p2, Vec2 q1, Vec2 q2)
