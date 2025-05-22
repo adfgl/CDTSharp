@@ -104,12 +104,11 @@
         {
             var (a, b) = seg;
             Circle diam = new Circle(_v[a], _v[b]);
-
             for (int i = 0; i < _v.Count; i++)
             {
                 if (a == i || b == i) continue;
 
-                var v = _v[i];
+                Vec2 v = _v[i];
                 if (diam.Contains(v.x, v.y))
                 {
                     return true;
@@ -347,13 +346,10 @@
 
         public void FinalizeMesh(bool keepConvex = false)
         {
-            // Step 1: Remove supertriangle vertices
             _v.RemoveRange(0, 3);
 
-            // Step 2: Build remapping of triangle indices while compacting
-            Dictionary<int, int> remap = new();
+            Dictionary<int, int> remap = new Dictionary<int, int>();
             int write = 0;
-
             for (int read = 0; read < _t.Count; read++)
             {
                 Triangle tri = _t[read];
@@ -386,21 +382,17 @@
                 }
             }
 
-            // Remove leftover triangles at the end
             if (write < _t.Count)
                 _t.RemoveRange(write, _t.Count - write);
 
-            // Step 3: Remap indices and adjacency
             for (int i = 0; i < _t.Count; i++)
             {
                 Triangle tri = _t[i];
 
                 for (int j = 0; j < 3; j++)
                 {
-                    // Adjust vertex indices (remove offset from supertriangle removal)
                     tri.indices[j] -= 3;
 
-                    // Remap adjacency if the twin still exists
                     int oldAdj = tri.adjacent[j];
                     tri.adjacent[j] = remap.TryGetValue(oldAdj, out int newAdj) ? newAdj : NO_INDEX;
                 }

@@ -11,20 +11,20 @@ namespace CDTSharpConsole
         {
             CDTInput input = new CDTInput()
             {
-                Refine = true,
+                Refine = false,
                 KeepConvex = false,
                 MaxArea = 55,
                 MinAngle = 33.3,
                 Polygons = new List<CDTPolygon>()
                 {
-                    new CDTPolygon(Circle(0, 0, 100, 25))
+                    new CDTPolygon(StandardShapes.Star(0, 0, 50, 36, 6))
                     {
                         //Points = [new Vec2(-11, 10), new Vec2(20, 15)],
 
-                        Holes = new List<List<Vec2>>()
-                        {
-                            Circle(0, 0, 65, 16),
-                        },
+                        //Holes = new List<List<Vec2>>()
+                        //{
+                        //    Circle(0, 0, 65, 16),
+                        //},
 
                         //Constraints = [(new Vec2(-60, 0), new Vec2(60, 0))]
                     }
@@ -87,29 +87,6 @@ namespace CDTSharpConsole
 
         }
 
-        static List<Vec2> Square(double cx, double cy, double r)
-        {
-            return new List<Vec2>
-            {
-                new Vec2(cx - r, cy - r),
-                new Vec2(cx + r, cy - r),
-                new Vec2(cx + r, cy + r),
-                new Vec2(cx - r, cy + r)
-            };
-        }
 
-        static List<Vec2> Circle(double cx, double cy, double r, int steps)
-        {
-            var result = new List<Vec2>();
-            for (int i = 0; i < steps; i++)
-            { 
-                double angle = 2 * MathF.PI * i / steps;
-                result.Add(new Vec2(
-                    cx + r * Math.Cos(angle),
-                    cy + r * Math.Sin(angle)
-                ));
-            }
-            return result;
-        }
     }
 }
