@@ -11,9 +11,9 @@ namespace CDTSharpConsole
         {
             CDTInput input = new CDTInput()
             {
-                Refine = false,
+                Refine = true,
                 KeepConvex = false,
-                MaxArea = 55,
+                MaxArea = 8,
                 MinAngle = 33.3,
                 Polygons = new List<CDTPolygon>()
                 {
@@ -21,13 +21,14 @@ namespace CDTSharpConsole
                     {
                         //Points = [new Vec2(-11, 10), new Vec2(20, 15)],
 
-                        //Holes = new List<List<Vec2>>()
-                        //{
-                        //    Circle(0, 0, 65, 16),
-                        //},
+                        Holes = new List<List<Vec2>>()
+                        {
+                           StandardShapes.Star(0, 0, 25, 18, 6)
+                        },
 
                         //Constraints = [(new Vec2(-60, 0), new Vec2(60, 0))]
-                    }
+                    },
+
                 }
             };
 
@@ -36,7 +37,6 @@ namespace CDTSharpConsole
             var cdt = new CDT().Triangulate(input);
             sw.Stop();
             Console.WriteLine(sw.ElapsedMilliseconds + " ms");
-
 
             double minArea = double.MaxValue;
             double maxArea = double.MinValue;

@@ -11,7 +11,6 @@
         public readonly Circle circle;
         public readonly int[] indices, adjacent;
         public readonly bool[] constraint;
-        public bool hole;
         public int parent;
 
         public Triangle(
@@ -19,13 +18,12 @@
             int v0, int v1, int v2,
             int adj0 = NO_INDEX, int adj1 = NO_INDEX, int adj2 = NO_INDEX,
             bool con0 = false, bool con1 = false, bool con2 = false,
-            bool hole = false, int parent = NO_INDEX)
+            int parent = NO_INDEX)
         {
             this.circle = circle;
             this.indices = [v0, v1, v2];
             this.adjacent = [adj0, adj1, adj2];
             this.constraint = [con0, con1, con2];
-            this.hole = hole;
             this.parent = parent;
         }
 
@@ -67,7 +65,7 @@
 
         public override string ToString()
         {
-            return $"{(ContainsSuper() ? "[super] " : "")}{(hole ? "[hole] " : "")} {String.Join(' ', indices.Select(i => i))} ({String.Join(' ', adjacent)})";
+            return $"{(ContainsSuper() ? "[super] " : "")} {String.Join(' ', indices.Select(i => i))} ({String.Join(' ', adjacent)})";
         }
     }
 }

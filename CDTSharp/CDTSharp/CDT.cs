@@ -53,10 +53,14 @@
             for (int i = 0; i < _t.Count; i++)
             {
                 Triangle t = _t[i];
-                if (t.ContainsSuper()) continue;
+                if (t.ContainsSuper())
+                {
+                    continue;
+                }
 
                 var (x, y) = Center(t);
 
+                t.parent = NO_INDEX;
                 foreach (var item in polys)
                 {
                     var p = item.Item1;
@@ -67,7 +71,7 @@
                         {
                             if (hole.Contains(vertices, x, y))
                             {
-                                t.hole = true;
+                                t.parent = NO_INDEX;
                                 break;
                             }
                         }
@@ -251,7 +255,7 @@
 
         public bool IsBadTriangle(Triangle tri, double minAllowedDeg, double maxAllowedArea)
         {
-            if (tri.hole || tri.ContainsSuper()) return false;
+            if (tri.parent == NO_INDEX || tri.ContainsSuper()) return false;
 
             double minRad = double.MaxValue;
             for (int i = 0; i < 3; i++)
@@ -353,7 +357,7 @@
             for (int read = 0; read < _t.Count; read++)
             {
                 Triangle tri = _t[read];
-                bool discard = tri.ContainsSuper() || (!keepConvex && tri.hole);
+                bool discard = tri.ContainsSuper() || (!keepConvex && tri.parent == NO_INDEX);
 
                 if (!discard)
                 {
@@ -535,7 +539,7 @@
                     ia, ib, vertexIndex,
                     donor.adjacent[edge], tris[NEXT4[i]], tris[PREV4[i]],
                     donor.constraint[edge], false, false,
-                    donor.hole, donor.parent);
+                    donor.parent);
 
                 int triIndex = tris[i];
                 int adjIndex = newTri.adjacent[0];
@@ -591,10 +595,10 @@
             int t1 = tri0.adjacent[edgeIndex];
 
             int a = inds[3], b = inds[1], c = inds[2];
-            _t[t0] = new Triangle(new Circle(_v[a], _v[b], _v[c]), a, b, c, t1, parent: tri0.parent, hole: tri0.hole);
+            _t[t0] = new Triangle(new Circle(_v[a], _v[b], _v[c]), a, b, c, t1, parent: tri0.parent);
 
             a = inds[1]; b = inds[3]; c = inds[0];
-            _t[t1] = new Triangle(new Circle(_v[a], _v[b], _v[c]), a, b, c, t0, parent: tri1.parent, hole: tri1.hole);
+            _t[t1] = new Triangle(new Circle(_v[a], _v[b], _v[c]), a, b, c, t0, parent: tri1.parent);
 
             for (int i = 0; i < 4; i++)
             {
@@ -652,7 +656,7 @@
                     a, b, vertexIndex,
                     adjIndex, triIndices[next], triIndices[prev],
                     t.constraint[curr], false, false,
-                    t.hole, t.parent
+                    t.parent
                 );
 
                 if (triIndex < _t.Count)
@@ -695,7 +699,7 @@
             int e20 = edgeIndex;
             Triangle t0 = _t[triangleIndex];
             int t1Index = t0.adjacent[e20];
-            if (t0.hole || t1Index == NO_INDEX || t0.constraint[e20])
+            if (t1Index == NO_INDEX || t0.constraint[e20])
             {
                 return false;
             }
