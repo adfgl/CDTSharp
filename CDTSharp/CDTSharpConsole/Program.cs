@@ -11,7 +11,7 @@ namespace CDTSharpConsole
         {
             CDTInput input = new CDTInput()
             {
-                Refine = false,
+                Refine = true,
                 KeepConvex = false,
                 KeepSuper = false,
                 MaxArea = 25,
@@ -64,8 +64,6 @@ namespace CDTSharpConsole
             {
                 double area = cdt.Area(item);
                 avgArea += area;
-
-                Console.WriteLine(item);
 
                 if (!cdt.Clockwise(item))
                 {

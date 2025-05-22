@@ -67,7 +67,7 @@
         {
             double dx = this.x - x;
             double dy = this.y - y;
-            return dx * dx + dy * dy <= radiusSquared;
+            return dx * dx + dy * dy < radiusSquared;
         }
     }
 }
