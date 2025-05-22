@@ -13,7 +13,7 @@
         readonly List<Vec2> _v = new List<Vec2>();
         readonly List<Triangle> _t = new List<Triangle>();
         readonly HashSet<int> _affected = new HashSet<int>();
-        readonly Stack<LegalizeEdge> _toLegalize = new Stack<LegalizeEdge>();
+        readonly Stack<Edge> _toLegalize = new Stack<Edge>();
 
         public CDT Triangulate(CDTInput input)
         {
@@ -150,7 +150,7 @@
                 }
             }
 
-            double minSqrLen = (4.0 * maxArea) / Math.Sqrt(3) * 0.125;
+            double minSqrLen = (4.0 * maxArea) / Math.Sqrt(3) * 0.25;
             while (segmentQueue.Count > 0 || triangleQueue.Count > 0)
             {
                 _affected.Clear();
@@ -173,7 +173,13 @@
                     var (triIndex, edgeIndex) = FindContaining(mid, EPS);
                     if (edgeIndex == NO_INDEX)
                     {
-                        throw new Exception($"Midpoint of segment ({ia},{ib}) not found on any edge.");
+                        Edge edge = FindEdge(ia, ib);
+                        if (edge.index == NO_INDEX)
+                        {
+                            throw new Exception($"Midpoint of segment ({ia},{ib}) not found on any edge.");
+                        }
+                        triIndex = edge.triangle;
+                        edgeIndex = edge.index;
                     }
 
                     int insertedIndex = Insert(mid, triIndex, edgeIndex);
@@ -518,7 +524,7 @@
             {
                 int ti = inds[i];
                 SetAdjacent(ti, 0);
-                _toLegalize.Push(new LegalizeEdge(ti, 0));
+                _toLegalize.Push(new Edge(ti, 0));
             }
             return inds;
         }
@@ -586,8 +592,8 @@
             SetAdjacent(t1, 2);
 
             // push edge oppsote to v1
-            _toLegalize.Push(new LegalizeEdge(t0, 2));
-            _toLegalize.Push(new LegalizeEdge(t1, 1));
+            _toLegalize.Push(new Edge(t0, 2));
+            _toLegalize.Push(new Edge(t1, 1));
         }
 
         public int[] SplitTriangle(int triangleIndex, int vertexIndex)
@@ -630,7 +636,7 @@
             {
                 int ti = inds[i];
                 SetAdjacent(ti, 0);
-                _toLegalize.Push(new LegalizeEdge(ti, 0));
+                _toLegalize.Push(new Edge(ti, 0));
             }
             return inds;
         }
@@ -757,6 +763,7 @@
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         void SetAdjacent(int triangle, int edge)
         {
             Triangle t = _t[triangle];
@@ -766,7 +773,13 @@
                 Triangle adj = _t[adjIndex];
                 int a = t.indices[edge];
                 int b = t.indices[Triangle.NEXT[edge]];
-                adj.adjacent[adj.IndexOf(b, a)] = triangle;
+
+                int adjEdge = adj.IndexOf(b, a);
+                if (adjEdge == NO_INDEX)
+                {
+                    throw new Exception();
+                }
+                adj.adjacent[adjEdge] = triangle;
             }
         }
 
@@ -804,17 +817,17 @@
             }
         }
 
-        public LegalizeEdge FindEdgeBrute(int aIndex, int bIndex)
+        public Edge FindEdgeBrute(int aIndex, int bIndex)
         {
             for (int i = 0; i < _t.Count; i++)
             {
                 int edge = _t[i].IndexOf(aIndex, bIndex);
-                if (edge != NO_INDEX) return new LegalizeEdge(i, edge);
+                if (edge != NO_INDEX) return new Edge(i, edge);
             }
-            return new LegalizeEdge(NO_INDEX, NO_INDEX);
+            return new Edge(NO_INDEX, NO_INDEX);
         }
 
-        public LegalizeEdge FindEdge(int aIndex, int bIndex)
+        public Edge FindEdge(int aIndex, int bIndex)
         {
             int lastContained = NO_INDEX;
             for (int triIndex = 0; triIndex < _t.Count; triIndex++)
@@ -826,7 +839,7 @@
                     {
                         if (tri.indices[Triangle.NEXT[edgeIndex]] == bIndex)
                         {
-                            return new LegalizeEdge(triIndex, edgeIndex);
+                            return new Edge(triIndex, edgeIndex);
                         }
                         lastContained = triIndex;
                         break;
@@ -841,11 +854,11 @@
                 int current = walker.Current;
                 int edge = _t[current].IndexOfInvariant(aIndex, bIndex);
                 if (edge != NO_INDEX)
-                    return new LegalizeEdge(current, edge);
+                    return new Edge(current, edge);
             }
             while (walker.MoveNextCW());
 
-            return new LegalizeEdge(lastContained, NO_INDEX);
+            return new Edge(lastContained, NO_INDEX);
         }
 
         public void AddConstraint(int aIndex, int bIndex)
@@ -857,9 +870,9 @@
 
             List<Triangle> triangles = _t;
             List<Vec2> vertices = _v;
-            Stack<LegalizeEdge> legalize = _toLegalize;
+            Stack<Edge> legalize = _toLegalize;
 
-            LegalizeEdge edge = FindEdge(aIndex, bIndex);
+            Edge edge = FindEdge(aIndex, bIndex);
             int triangle = edge.triangle;
             if (edge.index != NO_INDEX)
             {
@@ -897,7 +910,6 @@
                 {
                     Vec2 q1 = vertices[currentTri.indices[i]];
                     Vec2 q2 = vertices[currentTri.indices[Triangle.NEXT[i]]];
-
                     if (Vec2.Cross(q1, q2, p2) > 0)
                     {
                         current = currentTri.adjacent[i];

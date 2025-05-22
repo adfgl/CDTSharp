@@ -1,10 +1,10 @@
 ﻿namespace CDTSharp
 {
-    public readonly struct LegalizeEdge
+    public readonly struct Edge
     {
         public readonly int triangle, index;
 
-        public LegalizeEdge(int triangle, int edge)
+        public Edge(int triangle, int edge)
         {
             this.triangle = triangle;
             this.index = edge;

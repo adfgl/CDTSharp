@@ -14,25 +14,25 @@ namespace CDTSharpConsole
                 Refine = true,
                 KeepConvex = false,
                 KeepSuper = false,
-                MaxArea = 15,
+                MaxArea = 2,
                 MinAngle = 33.3,
                 Polygons = new List<CDTPolygon>()
                 {
-                    //new CDTPolygon([new (42.356, -18.238), new (0.33001188621764754, 22.71505548932538), new (-33.351, -20.41), new (16.079492752868575, 43.245628761923896), new (77.67121257066408, 55.90146160119696)])
-                    //{
-                    //    //Points = [new Vec2(-11, 10), new Vec2(20, 15)],
-
-                    //    //Holes = new List<List<Vec2>>()
-                    //    //{
-                    //    //   StandardShapes.Star(0, 0, 25, 18, 6)
-                    //    //},
-
-                    //    //Constraints = [(new Vec2(-60, 0), new Vec2(60, 0))]
-                    //},
-
-                    new CDTPolygon([new (42.356, -18.238), new (-33.351, -20.41), new (21.132992936880783, -6.9534977796240725), new (1.71, 60.572)])
+                    new CDTPolygon(StandardShapes.Circle(0, 0, 55, 16))
                     {
-                    }
+                        //Points = [new Vec2(-11, 10), new Vec2(20, 15)],
+
+                        //Holes = new List<List<Vec2>>()
+                        //{
+                        //   StandardShapes.Star(0, 0, 25, 18, 6)
+                        //},
+
+                        //Constraints = [(new Vec2(-60, 0), new Vec2(60, 0))]
+                    },
+
+                    //new CDTPolygon([new (42.356, -18.238), new (-33.351, -20.41), new (1.71, 60.572), new (-24.90, -13.574)])
+                    //{
+                    //}
                 }
             };
 

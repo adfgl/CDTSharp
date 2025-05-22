@@ -76,8 +76,8 @@ namespace CDTSharpTests
                 {
                     int a = tri.indices[j];
                     int b = tri.indices[(j + 1) % 3];
-                    LegalizeEdge expectedA = cdt.FindEdge(a, b);
-                    LegalizeEdge expectedB = cdt.FindEdge(b, a);
+                    Edge expectedA = cdt.FindEdge(a, b);
+                    Edge expectedB = cdt.FindEdge(b, a);
 
                     Vec2 center = (cdt.Vertices[a] + cdt.Vertices[b]) / 2;
 
