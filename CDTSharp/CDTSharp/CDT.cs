@@ -149,7 +149,7 @@
                 }
             }
 
-            double minSqrLen = (4.0 * maxArea) / Math.Sqrt(3) * 0.1;
+            double minSqrLen = (4.0 * maxArea) / Math.Sqrt(3) * 0.25;
             while (segmentQueue.Count > 0 || triangleQueue.Count > 0)
             {
                 _affected.Clear();
@@ -172,14 +172,7 @@
                     var (triIndex, edgeIndex) = FindContaining(mid, EPS);
                     if (edgeIndex == NO_INDEX)
                     {
-                        LegalizeEdge edge = FindEdge(ia, ib);
-                        triIndex = edge.triangle;
-                        edgeIndex = edge.index;
-
-                        if (edgeIndex == NO_INDEX)
-                        {
-                            throw new Exception("Midpoint not on any edge.");
-                        }
+                       
                     }
 
                     int insertedIndex = Insert(mid, triIndex, edgeIndex);
@@ -212,7 +205,7 @@
 
                     Vec2 cc = new Vec2(tri.circle.x, tri.circle.y);
 
-                    //if (!polys.ContainsContour(cc)) continue;
+                    if (!polys.ContainsContour(cc)) continue;
 
                     bool encroaches = false;
                     foreach (Segment seg in uniqueSegments)
@@ -733,7 +726,6 @@
             {
                 if (steps++ > max)
                 {
-                    Console.WriteLine(this.ToSvg(fill:false));
                     throw new Exception("Could not find containing triangle. Most likely mesh topology is invalid.");
                 }
 
