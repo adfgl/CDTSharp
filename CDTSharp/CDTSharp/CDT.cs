@@ -429,18 +429,7 @@
         }
 
 
-        void SetAdjacent(int triangle, int edge)
-        {
-            Triangle t = _t[triangle];
-            int adjIndex = t.adjacent[edge];
-            if (adjIndex != NO_INDEX)
-            {
-                Triangle adj = _t[adjIndex];
-                int a = t.indices[edge];
-                int b = t.indices[Triangle.NEXT[edge]];
-                adj.adjacent[adj.IndexOf(b, a)] = triangle;
-            }
-        }
+   
 
         public int[] SplitEdge(int triangleIndex, int edgeIndex, int vertexIndex)
         {
@@ -529,7 +518,7 @@
             {
                 int ti = inds[i];
                 SetAdjacent(ti, 0);
-                _toLegalize.Push(new LegalizeEdge(t0, 0));
+                _toLegalize.Push(new LegalizeEdge(ti, 0));
             }
             return inds;
         }
@@ -643,7 +632,6 @@
                 SetAdjacent(ti, 0);
                 _toLegalize.Push(new LegalizeEdge(ti, 0));
             }
-
             return inds;
         }
 
@@ -749,16 +737,16 @@
                     Vec2 b = vertices[tri.indices[Triangle.NEXT[i]]];
 
                     double cross = Vec2.Cross(a, b, point);
-                    if (OnSegment(a, b, point, tolerance)) // Math.Abs(cross) < tolerance && 
-                    {
-                        return (current, i);
-                    }
-
                     if (cross > tolerance)
                     {
                         current = tri.adjacent[i];
                         inside = false;
                         break;
+                    }
+
+                    if (Math.Abs(cross) < tolerance && OnSegment(a, b, point, tolerance))
+                    {
+                        return (current, i);
                     }
                 }
 
@@ -769,21 +757,33 @@
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void MarkConstrained(List<Triangle> triangles, int triangleIndex, int edgeIndex)
+        void SetAdjacent(int triangle, int edge)
         {
-            Triangle tri = triangles[triangleIndex];
-            tri.constraint[edgeIndex] = true;
+            Triangle t = _t[triangle];
+            int adjIndex = t.adjacent[edge];
+            if (adjIndex != NO_INDEX)
+            {
+                Triangle adj = _t[adjIndex];
+                int a = t.indices[edge];
+                int b = t.indices[Triangle.NEXT[edge]];
+                adj.adjacent[adj.IndexOf(b, a)] = triangle;
+            }
+        }
 
-            int adjIndex = tri.adjacent[edgeIndex];
+        void SetConstraint(int triangle, int edge)
+        {
+            Triangle t = _t[triangle];
+            t.constraint[edge] = true;
+            
+            int adjIndex = t.adjacent[edge];
             if (adjIndex == NO_INDEX)
             {
-                throw new InvalidOperationException($"Edge {edgeIndex} in triangle {triangleIndex} has no twin. Cannot propagate constraint across broken topology.");
+                throw new InvalidOperationException($"Edge {triangle} in triangle {edge} has no twin. Cannot propagate constraint across broken topology.");
             }
 
-            Triangle adj = triangles[adjIndex];
-            int a = tri.indices[edgeIndex];
-            int b = tri.indices[Triangle.NEXT[edgeIndex]];
+            Triangle adj = _t[adjIndex];
+            int a = t.indices[edge];
+            int b = t.indices[Triangle.NEXT[edge]];
             adj.constraint[adj.IndexOf(b, a)] = true;
         }
 
@@ -863,7 +863,7 @@
             int triangle = edge.triangle;
             if (edge.index != NO_INDEX)
             {
-                MarkConstrained(triangles, triangle, edge.index);
+                SetConstraint(triangle, edge.index);
                 return;
             }
 
@@ -879,13 +879,12 @@
                 {
                     if (currentTri.constraint[i]) continue;
 
-                    Vec2 q1 = vertices[currentTri.indices[i]];
-                    Vec2 q2 = vertices[currentTri.indices[Triangle.NEXT[i]]];
-
-                    if (Intersect(p1, p2, q1, q2, out _))
+                    int a = currentTri.indices[i];
+                    int b = currentTri.indices[Triangle.NEXT[i]];
+                    if (Intersect(p1, p2, vertices[a], vertices[b], out _))
                     {
                         FlipEdge(current, i);
-                        MarkConstrained(triangles, current, i);
+                        SetConstraint(current, triangles[current].IndexOfInvariant(a, b));
                         Legalize();
                     }
                 }
