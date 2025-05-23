@@ -159,7 +159,8 @@
                 }
             }
 
-            double minSqrLen = (4.0 * maxArea) / Math.Sqrt(3) * 0.25;
+            double minSqrLen = Math.Sqrt(4.0 * maxArea / Math.Sqrt(3)) * 0.25;
+            minSqrLen *= minSqrLen;
             while (segmentQueue.Count > 0 || triangleQueue.Count > 0)
             {
                 if (segmentQueue.Count > 0)

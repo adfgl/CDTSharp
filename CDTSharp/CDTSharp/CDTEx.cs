@@ -8,7 +8,7 @@ namespace CDTSharp
 {
     public static class CDTEx
     {
-        public static string ToSvg(this CDT cdt, int size = 1000, float padding = 10f, bool fill = true)
+        public static string ToSvg(this CDT cdt, int size = 1000, float padding = 10f, bool fill = true, bool drawConstraints = false)
         {
             if (cdt.Vertices.Count == 0 || cdt.Triangles.Count == 0)
                 return "<svg xmlns='http://www.w3.org/2000/svg'/>";
@@ -69,17 +69,20 @@ namespace CDTSharp
                 sb.Append("' fill='none' stroke='#000' stroke-width='1'/>");
             }
 
-            // === Draw constraint edges ===
-            sb.Append("<path d='");
-            foreach (var (a, b) in cdt.Constraints)
+            if (drawConstraints)
             {
-                var va = cdt.Vertices[a];
-                var vb = cdt.Vertices[b];
-                var (x1, y1) = Project(va.x, va.y);
-                var (x2, y2) = Project(vb.x, vb.y);
-                sb.Append($"M{x1:F1},{y1:F1}L{x2:F1},{y2:F1}");
+                sb.Append("<path d='");
+                foreach (var (a, b) in cdt.Constraints)
+                {
+                    var va = cdt.Vertices[a];
+                    var vb = cdt.Vertices[b];
+                    var (x1, y1) = Project(va.x, va.y);
+                    var (x2, y2) = Project(vb.x, vb.y);
+                    sb.Append($"M{x1:F1},{y1:F1}L{x2:F1},{y2:F1}");
+                }
+                sb.Append("' fill='none' stroke='red' stroke-width='2.5'/>");
             }
-            sb.Append("' fill='none' stroke='red' stroke-width='2.5'/>");
+     
 
             sb.Append("</svg>");
             return sb.ToString();

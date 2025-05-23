@@ -11,25 +11,29 @@ namespace CDTSharpConsole
         {
             CDTInput input = new CDTInput()
             {
-                Refine = false,
+                Refine = true,
                 KeepConvex = false,
                 KeepSuper = false,
-                MaxArea = 5,
+                MaxArea = 60,
                 MinAngle = 33.3,
                 Polygons = new List<CDTPolygon>()
                 {
-                    StandardShapes.Pyramid(0, 0, 46),
-                     StandardShapes.Pyramid(33, 0, 46),
+                    StandardShapes.Pyramid(0, 0, 46, 4),
+                     StandardShapes.Pyramid(33, 33, 46, 4),
+                        StandardShapes.Pyramid(-33, 33, 46, 4),
+                                       StandardShapes.Pyramid(-33, -33, 46, 4),
+                                                   StandardShapes.Pyramid(33, -33, 46, 4),
                 }
             };
+
 
             Stopwatch sw = new Stopwatch();
             sw.Start();
             var cdt = new CDT();
 
-                cdt.Triangulate(input);
             try
             {
+                cdt.Triangulate(input);
             }
             catch (Exception e)
             {
@@ -74,7 +78,7 @@ namespace CDTSharpConsole
             }
             avgArea /= cdt.Triangles.Count;
             avgAng /= 3 * cdt.Triangles.Count;
-            Console.WriteLine(cdt.ToSvg(fill: true));
+            Console.WriteLine(cdt.ToSvg(fill: true, drawConstraints: false));
             Console.WriteLine();
             Console.WriteLine("count: " + cdt.Triangles.Count);
             Console.WriteLine("Area min: " + minArea);

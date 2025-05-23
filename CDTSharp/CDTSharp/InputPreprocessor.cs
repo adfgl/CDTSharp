@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Diagnostics;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -25,8 +26,8 @@ namespace CDTSharp
             _vertices = new List<CDTVector>();
             _constraints = new List<(int, int)>();
             _polygons = new List<(Polygon, Polygon[])>();
-            List<Constraint> constraints = new List<Constraint>();
 
+            List<Constraint> constraints = new List<Constraint>();
             Rect rect = Rect.Empty;
             for (int i = 0; i < input.Polygons.Count; i++)
             {
@@ -36,18 +37,70 @@ namespace CDTSharp
 
 
             HashSet<Segment> seen = new HashSet<Segment>();
-            foreach (Constraint item in constraints)
+            for (int i = constraints.Count - 1; i >= 0; i--)
             {
+                var item = constraints[i];
                 var (a, b) = item;
+                var (x, y) = CDTVector.MidPoint(a, b);
+
+                bool remove = false;
+                if (item.type == EConstraint.Hole)
+                {
+                    remove = true;
+                    foreach ((Polygon contour, _) in _polygons)
+                    {
+                        if (contour.Contains(_vertices, x, y))
+                        {
+                            remove = false;
+                            break;
+                        }
+                    }
+                }
+                else if (item.type == EConstraint.User)
+                {
+                    // User constraint must be inside at least one contour and outside all holes of that contour
+                    bool inAtLeastOneContour = false;
+                    bool inAnyHole = false;
+
+                    foreach ((Polygon contour, Polygon[] holes) in _polygons)
+                    {
+                        if (contour.Contains(_vertices, x, y))
+                        {
+                            inAtLeastOneContour = true;
+
+                            foreach (var hole in holes)
+                            {
+                                if (hole.Contains(_vertices, x, y))
+                                {
+                                    inAnyHole = true;
+                                    break;
+                                }
+                            }
+
+                            if (inAnyHole)
+                                break;
+                        }
+                    }
+
+                    remove = !inAtLeastOneContour || inAnyHole;
+                }
+
+
+                if (remove)
+                {
+                    constraints.RemoveAt(i);
+                    continue;
+                }
+
                 int ai = AddPoint(_vertices, a, eps);
                 int bi = AddPoint(_vertices, b, eps);
-
                 if (ai == bi) continue;
 
                 if (seen.Add(new Segment(ai, bi)))
                 {
                     _constraints.Add((ai, bi));
                 }
+
             }
         }
 
@@ -121,7 +174,6 @@ namespace CDTSharp
                 }
             }
 
-            CleanConstraints(constraints, contour, holeContours, eps);
 
             Polygon contourPoly = BuildPolygon(index, contour.Item1, eps);
             List<Polygon> holePolygons = new List<Polygon>(holeContours.Count);

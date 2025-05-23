@@ -2,9 +2,9 @@
 {
     public static class StandardShapes
     {
-        public static CDTPolygon Pyramid(double cx, double cy, double radius)
+        public static CDTPolygon Pyramid(double cx, double cy, double radius, int details = 4)
         {
-            List<CDTVector> square = Square(cx, cy, radius);
+            List<CDTVector> square = details == 4 ? Square(cx, cy, radius) : Circle(cx, cy, radius, details);
 
             CDTVector center = CDTVector.Zero;
             foreach (var c in square)
