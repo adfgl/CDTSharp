@@ -10,7 +10,7 @@ namespace CDTSharpTests
     using static CDT;
     public static class AssertHelper
     {
-        public static void Equal(Triangle expected, List<Triangle> tris, int index, string? message = null)
+        public static void Equal(CDTTriangle expected, List<CDTTriangle> tris, int index, string? message = null)
         {
             for (int i = 0; i < 3; i++)
             {
@@ -27,9 +27,9 @@ namespace CDTSharpTests
             }
         }
 
-        public static void HasTwin(List<Triangle> tris, int index)
+        public static void HasTwin(List<CDTTriangle> tris, int index)
         {
-            Triangle tri = tris[index];
+            CDTTriangle tri = tris[index];
             bool found = false;
 
             for (int i = 0; i < 3; i++)
@@ -53,7 +53,7 @@ namespace CDTSharpTests
                         );
 
                         // Check that j's opposite edge points back to index
-                        Triangle twin = tris[j];
+                        CDTTriangle twin = tris[j];
                         Assert.True(
                             twin.adjacent[oppEdge] == index,
                             $"Twin triangle[{j}].adjacent[{oppEdge}] should point back to triangle {index} (shared edge {b}-{a})"

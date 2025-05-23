@@ -4,7 +4,7 @@
     using System.Runtime.CompilerServices;
     using static CDT;
 
-    public struct Triangle
+    public struct CDTTriangle
     {
         public readonly static int[] NEXT = [1, 2, 0], PREV = [2, 0, 1];
 
@@ -13,7 +13,7 @@
         public readonly bool[] constraint;
         public int parent;
 
-        public Triangle(
+        public CDTTriangle(
             Circle circle,
             int v0, int v1, int v2,
             int adj0 = NO_INDEX, int adj1 = NO_INDEX, int adj2 = NO_INDEX,

@@ -11,7 +11,7 @@
             this.indices = indices;
         }
 
-        public Rect Bounds(List<Vec2> verts)
+        public Rect Bounds(List<CDTVector> verts)
         {
             double minX, minY, maxX, maxY;
             minX = minY = double.MaxValue;
@@ -27,9 +27,9 @@
             return new Rect(minX, minY, maxX, maxY);
         }
 
-        public bool Contains(List<Vec2> vertices, double x, double y, double tolerance = 0)
+        public bool Contains(List<CDTVector> vertices, double x, double y, double tolerance = 0)
         {
-            List<Vec2>? verts = vertices;
+            List<CDTVector>? verts = vertices;
             int count = indices.Count;
             bool inside = false;
             for (int i = 0, j = count - 1; i < count; j = i++)

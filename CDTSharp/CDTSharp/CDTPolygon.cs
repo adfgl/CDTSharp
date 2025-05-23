@@ -2,14 +2,14 @@
 {
     public class CDTPolygon
     {
-        public CDTPolygon(List<Vec2> contour)
+        public CDTPolygon(List<CDTVector> contour)
         {
             Contour = contour;
         }
 
-        public List<Vec2> Contour { get; set; }
-        public List<List<Vec2>>? Holes { get; set; }
-        public List<Vec2>? Points { get; set; }
-        public List<(Vec2, Vec2)>? Constraints { get; set; }
+        public List<CDTVector> Contour { get; set; }
+        public List<List<CDTVector>>? Holes { get; set; }
+        public List<CDTVector>? Points { get; set; }
+        public List<(CDTVector, CDTVector)>? Constraints { get; set; }
     }
 }

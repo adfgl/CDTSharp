@@ -13,7 +13,7 @@ namespace CDTSharp
     public class InputPreprocessor
     {
         readonly CDTInput _input;
-        readonly List<Vec2> _vertices;
+        readonly List<CDTVector> _vertices;
         readonly List<(int a, int b)> _constraints;
         readonly List<(Polygon, Polygon[])> _polygons;
         readonly Rect _rect;
@@ -22,7 +22,7 @@ namespace CDTSharp
         {
             _input = input;
 
-            _vertices = new List<Vec2>();
+            _vertices = new List<CDTVector>();
             _constraints = new List<(int, int)>();
             _polygons = new List<(Polygon, Polygon[])>();
             List<Constraint> constraints = new List<Constraint>();
@@ -52,12 +52,12 @@ namespace CDTSharp
         }
 
         public CDTInput Input => _input;
-        public List<Vec2> Vertices => _vertices;
+        public List<CDTVector> Vertices => _vertices;
         public List<(int a, int b)> Constraints => _constraints;
         public List<(Polygon, Polygon[])> Polygons => _polygons;
         public Rect Rect => _rect;
 
-        public bool ContainsContour(Vec2 v)
+        public bool ContainsContour(CDTVector v)
         {
             foreach (var item in _polygons)
             {
@@ -71,25 +71,25 @@ namespace CDTSharp
 
         Rect ProcessPolygon(List<Constraint> constraints, int index, CDTPolygon cdtPolygon, double eps)
         {
-            (List<Vec2>, Rect) contour = ExtractContour(cdtPolygon.Contour, eps);
-            List<(List<Vec2>, Rect)> holeContours = new List<(List<Vec2>, Rect)>();
+            (List<CDTVector>, Rect) contour = ExtractContour(cdtPolygon.Contour, eps);
+            List<(List<CDTVector>, Rect)> holeContours = new List<(List<CDTVector>, Rect)>();
             if (cdtPolygon.Holes != null) ExtractHoles(holeContours, contour, cdtPolygon.Holes, eps);
        
             ExtractConstraints(constraints, contour.Item1, EConstraint.Contour, eps);
-            foreach ((List<Vec2>, Rect) item in holeContours)
+            foreach ((List<CDTVector>, Rect) item in holeContours)
             {
                 ExtractConstraints(constraints, item.Item1, EConstraint.Hole, eps);
             }
 
             if (cdtPolygon.Constraints != null)
             {
-                foreach ((Vec2 a, Vec2 b) in cdtPolygon.Constraints)
+                foreach ((CDTVector a, CDTVector b) in cdtPolygon.Constraints)
                 {
                     AddConstraint(constraints, a, b, EConstraint.User, eps);
                 }
             }
 
-            List<Vec2> pointConstraints = new List<Vec2>();
+            List<CDTVector> pointConstraints = new List<CDTVector>();
             if (cdtPolygon.Points != null)
             {
                 foreach (var v in cdtPolygon.Points)
@@ -138,7 +138,7 @@ namespace CDTSharp
             return contour.Item2;
         }
 
-        Polygon BuildPolygon(int index, List<Vec2> points, double eps)
+        Polygon BuildPolygon(int index, List<CDTVector> points, double eps)
         {
             List<int> indices = new List<int>(points.Count);
             foreach (var item in points)
@@ -148,13 +148,13 @@ namespace CDTSharp
             return new Polygon(index, indices);
         }
 
-        void CleanConstraints(List<Constraint> constraints, (List<Vec2>, Rect) contour, List<(List<Vec2>, Rect)> holeContours, double eps)
+        void CleanConstraints(List<Constraint> constraints, (List<CDTVector>, Rect) contour, List<(List<CDTVector>, Rect)> holeContours, double eps)
         {
             for (int i = constraints.Count - 1; i >= 0; i--)
             {
                 Constraint current = constraints[i];
                 var (a, b) = current;
-                var (x, y) = Vec2.MidPoint(a, b);
+                var (x, y) = CDTVector.MidPoint(a, b);
 
                 bool remove;
                 switch (current.type)
@@ -178,7 +178,7 @@ namespace CDTSharp
         }
 
 
-        void AddConstraint(List<Constraint> constraints, Vec2 p1, Vec2 p2, EConstraint type, double eps)
+        void AddConstraint(List<Constraint> constraints, CDTVector p1, CDTVector p2, EConstraint type, double eps)
         {
             Stack<Constraint> toProcess = new Stack<Constraint>();
             toProcess.Push(new Constraint(p1, p2, type));
@@ -240,7 +240,7 @@ namespace CDTSharp
                         break;
                     }
 
-                    if (CDT.Intersect(a1, a2, b1, b2, out Vec2 inter))
+                    if (CDT.Intersect(a1, a2, b1, b2, out CDTVector inter))
                     {
                         constraints.RemoveAt(i);
                         var (c1a, c1b) = current.Split(inter);
@@ -261,24 +261,24 @@ namespace CDTSharp
             }
         }
 
-        void ExtractConstraints(List<Constraint> constraints, List<Vec2> contour, EConstraint type, double eps)
+        void ExtractConstraints(List<Constraint> constraints, List<CDTVector> contour, EConstraint type, double eps)
         {
             int count = contour.Count;
             for (int i = 0; i < count; i++)
             {
-                Vec2 p1 = contour[i];
-                Vec2 p2 = contour[(i + 1) % count];
+                CDTVector p1 = contour[i];
+                CDTVector p2 = contour[(i + 1) % count];
                 AddConstraint(constraints, p1, p2, type, eps);
             }
         }
 
-        (List<Vec2>, Rect) ExtractContour(List<Vec2> vertices, double eps)
+        (List<CDTVector>, Rect) ExtractContour(List<CDTVector> vertices, double eps)
         {
             double minX, minY, maxX, maxY;
             minX = minY = double.MaxValue;
             maxX = maxY = double.MinValue;
-            List<Vec2> contour = new List<Vec2>(vertices.Count);
-            foreach (Vec2 item in vertices)
+            List<CDTVector> contour = new List<CDTVector>(vertices.Count);
+            foreach (CDTVector item in vertices)
             {
                 if (IndexOf(contour, item, eps) == CDT.NO_INDEX)
                 {
@@ -294,11 +294,11 @@ namespace CDTSharp
             return (contour, new Rect(minX, minY, maxX, maxY));
         }
 
-       void ExtractHoles(List<(List<Vec2>, Rect)> contours, (List<Vec2>, Rect) contour, List<List<Vec2>> holes, double eps)
+       void ExtractHoles(List<(List<CDTVector>, Rect)> contours, (List<CDTVector>, Rect) contour, List<List<CDTVector>> holes, double eps)
         {
-            foreach (List<Vec2> hole in holes)
+            foreach (List<CDTVector> hole in holes)
             {
-                (List<Vec2>, Rect) holeContour = ExtractContour(hole, eps);
+                (List<CDTVector>, Rect) holeContour = ExtractContour(hole, eps);
                 if (!Contains(contour, holeContour, eps)
                     && 
                     !Intersects(contour, holeContour, eps))
@@ -309,7 +309,7 @@ namespace CDTSharp
                 bool add = true;
                 for (int i = contours.Count - 1; i >= 0; i--)
                 {
-                    (List<Vec2>, Rect) existing = contours[i];
+                    (List<CDTVector>, Rect) existing = contours[i];
                     if (Contains(existing, holeContour, eps))
                     {
                         add = false;
@@ -329,7 +329,7 @@ namespace CDTSharp
             }
         }
 
-        public int AddPoint(List<Vec2> all, Vec2 v, double eps = 0)
+        public int AddPoint(List<CDTVector> all, CDTVector v, double eps = 0)
         {
             int index = IndexOf(all, v, eps);
             if (index < 0)
@@ -341,7 +341,7 @@ namespace CDTSharp
             return index;
         }
 
-        public static int IndexOf(List<Vec2> all, Vec2 v, double eps = 0)
+        public static int IndexOf(List<CDTVector> all, CDTVector v, double eps = 0)
         {
             var (x, y) = v;
             double epsSqr = eps * eps;

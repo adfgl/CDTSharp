@@ -2,14 +2,14 @@
 {
     public struct TriangleWalker
     {
-        readonly List<Triangle> _triangles;
+        readonly List<CDTTriangle> _triangles;
         readonly int _start;
         readonly int _vertex;
         int _current;
 
         public int Current => _current;
 
-        public TriangleWalker(List<Triangle> triangles, int triangleIndex, int globalVertexIndex)
+        public TriangleWalker(List<CDTTriangle> triangles, int triangleIndex, int globalVertexIndex)
         {
             _triangles = triangles;
             _vertex = globalVertexIndex;
@@ -18,7 +18,7 @@
 
         public bool MoveNextCCW()
         {
-            Triangle tri = _triangles[_current];
+            CDTTriangle tri = _triangles[_current];
             int next = tri.adjacent[tri.IndexOf(_vertex)];
             if (next == _start) return false;
             _current = next;
@@ -27,8 +27,8 @@
 
         public bool MoveNextCW()
         {
-            Triangle tri = _triangles[_current];
-            int next = tri.adjacent[Triangle.PREV[tri.IndexOf(_vertex)]];
+            CDTTriangle tri = _triangles[_current];
+            int next = tri.adjacent[CDTTriangle.PREV[tri.IndexOf(_vertex)]];
             if (next == _start) return false;
             _current = next;
             return true;

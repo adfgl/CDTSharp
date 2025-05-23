@@ -8,7 +8,7 @@ namespace CDTSharp
 {
     public static class PolygonHelper
     {
-        public static bool Contains((List<Vec2>, Rect) contour, List<(List<Vec2>, Rect)> holeContours, double x, double y, double eps)
+        public static bool Contains((List<CDTVector>, Rect) contour, List<(List<CDTVector>, Rect)> holeContours, double x, double y, double eps)
         {
             if (!Contains(contour, x, y, eps)) return false;
 
@@ -22,7 +22,7 @@ namespace CDTSharp
             return true;
         }
 
-        public static bool Contains((List<Vec2>, Rect) a, (List<Vec2>, Rect) b, double eps)
+        public static bool Contains((List<CDTVector>, Rect) a, (List<CDTVector>, Rect) b, double eps)
         {
             if (!a.Item2.Contains(b.Item2)) return false;
             foreach (var v in b.Item1)
@@ -32,20 +32,20 @@ namespace CDTSharp
             return !Intersects(a, b, eps);
         }
 
-        public static bool Intersects((List<Vec2>, Rect) a, (List<Vec2>, Rect) b, double eps)
+        public static bool Intersects((List<CDTVector>, Rect) a, (List<CDTVector>, Rect) b, double eps)
         {
             if (!a.Item2.Intersects(b.Item2)) return false;
 
-            List<Vec2> av = a.Item1, ab = b.Item1;
+            List<CDTVector> av = a.Item1, ab = b.Item1;
             int ac = av.Count, bc = ab.Count;
             for (int i = 0; i < ac; i++)
             {
-                Vec2 p1 = av[i];
-                Vec2 p2 = av[(i + 1) % ac];
+                CDTVector p1 = av[i];
+                CDTVector p2 = av[(i + 1) % ac];
                 for (int j = 0; j < bc; j++)
                 {
-                    Vec2 q1 = ab[j];
-                    Vec2 q2 = ab[(j + 1) % bc];
+                    CDTVector q1 = ab[j];
+                    CDTVector q2 = ab[(j + 1) % bc];
                     if (CDT.Intersect(p1, p2, q1, q2, out _))
                     {
                         return true;
@@ -55,7 +55,7 @@ namespace CDTSharp
             return false;
         }
 
-        public static bool Contains((List<Vec2>, Rect) poly, double x, double y, double tolerance = 0)
+        public static bool Contains((List<CDTVector>, Rect) poly, double x, double y, double tolerance = 0)
         {
             if (!poly.Item2.Contains(x, y)) return false;
 
