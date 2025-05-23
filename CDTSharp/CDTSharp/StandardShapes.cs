@@ -2,6 +2,29 @@
 {
     public static class StandardShapes
     {
+        public static CDTPolygon Pyramid(double cx, double cy, double radius)
+        {
+            List<CDTVector> square = Square(cx, cy, radius);
+
+            CDTVector center = CDTVector.Zero;
+            foreach (var c in square)
+            {
+                center += c;
+            }
+            center /= square.Count;
+
+            List<(CDTVector, CDTVector)> constraints = new List<(CDTVector, CDTVector)>();
+            foreach (CDTVector c in square)
+            {
+                constraints.Add((center, c));
+            }
+
+            return new CDTPolygon(square)
+            {
+                Constraints = constraints,
+            };
+        }
+
         public static List<CDTVector> Square(double cx, double cy, double r)
         {
             return new List<CDTVector>

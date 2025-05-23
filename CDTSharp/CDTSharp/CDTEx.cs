@@ -41,7 +41,7 @@ namespace CDTSharp
                     var (x2, y2) = Project(b.x, b.y);
                     var (x3, y3) = Project(c.x, c.y);
 
-                    string color = ColorFromId(tri.parent);
+                    string color = BlendColorsFromIds(tri.parents);
                     sb.Append($"<polygon points='{x1:F1},{y1:F1} {x2:F1},{y2:F1} {x3:F1},{y3:F1}' fill='{color}' fill-opacity='0.5' stroke='#000' stroke-width='1'/>");
                 }
             }
@@ -92,6 +92,30 @@ namespace CDTSharp
             }
         }
 
+        static string BlendColorsFromIds(List<int> ids)
+        {
+            if (ids.Count == 0)
+                return "#CCCCCC"; // fallback gray
+
+            float rSum = 0, gSum = 0, bSum = 0;
+            foreach (int id in ids)
+            {
+                string hex = ColorFromId(id);
+                int r = Convert.ToInt32(hex.Substring(1, 2), 16);
+                int g = Convert.ToInt32(hex.Substring(3, 2), 16);
+                int b = Convert.ToInt32(hex.Substring(5, 2), 16);
+
+                rSum += r;
+                gSum += g;
+                bSum += b;
+            }
+
+            int R = (int)(rSum / ids.Count);
+            int G = (int)(gSum / ids.Count);
+            int B = (int)(bSum / ids.Count);
+
+            return $"#{R:X2}{G:X2}{B:X2}";
+        }
 
         static string ColorFromId(int id)
         {

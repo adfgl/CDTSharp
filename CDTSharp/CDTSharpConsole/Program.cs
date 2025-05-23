@@ -18,13 +18,8 @@ namespace CDTSharpConsole
                 MinAngle = 33.3,
                 Polygons = new List<CDTPolygon>()
                 {
-                    new CDTPolygon(StandardShapes.Square(0, 0, 50))
-                    {
-                    },
-
-                     new CDTPolygon(StandardShapes.Square(25, 25, 50))
-                    {
-                    },
+                    StandardShapes.Pyramid(0, 0, 46),
+                     StandardShapes.Pyramid(33, 0, 46),
                 }
             };
 

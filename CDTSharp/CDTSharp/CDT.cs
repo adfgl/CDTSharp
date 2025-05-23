@@ -58,33 +58,39 @@
             {
                 CDTTriangle t = _t[i];
                 if (t.ContainsSuper())
-                {
                     continue;
-                }
 
                 var (x, y) = Center(t);
+                t.parents.Clear();
 
-                t.parent = NO_INDEX;
                 foreach (var item in polys)
                 {
-                    var p = item.Item1;
-                    if (p.Contains(vertices, x, y))
+                    Polygon contour = item.Item1;
+                    Polygon[] holes = item.Item2;
+
+                    if (contour.Contains(vertices, x, y))
                     {
-                        t.parent = p.index;
-                        foreach (var hole in item.Item2)
+                        bool insideHole = false;
+                        foreach (var hole in holes)
                         {
                             if (hole.Contains(vertices, x, y))
                             {
-                                t.parent = NO_INDEX;
+                                insideHole = true;
                                 break;
                             }
                         }
-                        _t[i] = t;
-                        break;
+
+                        if (!insideHole)
+                        {
+                            t.parents.Add(contour.index);
+                        }
                     }
                 }
+
+                _t[i] = t;
             }
         }
+
 
         CDTVector Center(CDTTriangle t)
         {
@@ -246,7 +252,7 @@
 
         public bool IsBadTriangle(CDTTriangle tri, double minAllowedDeg, double maxAllowedArea)
         {
-            if (tri.parent == NO_INDEX || tri.ContainsSuper()) return false;
+            if (tri.parents.Count == 0 || tri.ContainsSuper()) return false;
 
             double minRad = double.MaxValue;
             for (int i = 0; i < 3; i++)
@@ -320,7 +326,7 @@
                 bool discard = false;
                 if (!keepSuper)
                 {
-                    discard = tri.ContainsSuper() || (!keepConvex && tri.parent == NO_INDEX);
+                    discard = tri.ContainsSuper() || (!keepConvex && tri.parents.Count == 0);
                 }
 
                 if (!discard)
@@ -486,28 +492,28 @@
                 i0, i1, vertexIndex,
                 tri0.adjacent[e01], t1, t3,
                 tri0.constraint[e01], false, constrained,
-                tri0.parent);
+                tri0.parents);
 
             _t[t1] = new CDTTriangle(
                 new Circle(v1, v2, v),
                 i1, i2, vertexIndex,
                 tri0.adjacent[e12], t2, t0,
                 tri0.constraint[e12], constrained, false,
-                tri0.parent);
+                tri0.parents);
 
             _t.Add(new CDTTriangle(
                  new Circle(v2, v3, v),
                  i2, i3, vertexIndex,
                  tri1.adjacent[e23], t3, t1,
                  tri1.constraint[e23], false, constrained,
-                 tri1.parent));
+                 tri1.parents));
 
             _t.Add(new CDTTriangle(
                  new Circle(v3, v0, v),
                  i3, i0, vertexIndex,
                  tri1.adjacent[e30], t0, t2,
                  tri1.constraint[e30], constrained, false,
-                 tri1.parent));
+                 tri1.parents));
 
             int[] inds = [t0, t1, t2, t3];
             for (int i = 0; i < 4; i++)
@@ -539,21 +545,21 @@
                i0, i1, i3,
                t.adjacent[0], t1, t2,
                t.constraint[0], false, false,
-               t.parent);
+               t.parents);
 
             _t.Add(new CDTTriangle(
                 new Circle(_v[i1], _v[i2], v),
                i1, i2, i3,
                t.adjacent[1], t2, t0,
                t.constraint[1], false, false,
-               t.parent));
+               t.parents));
 
             _t.Add(new CDTTriangle(
                 new Circle(_v[i2], _v[i0], v),
                i2, i0, i3,
                t.adjacent[2], t0, t1,
                t.constraint[2], false, false,
-               t.parent));
+               t.parents));
 
             int[] inds = [t0, t1, t2];
             for (int i = 0; i < 3; i++)
@@ -606,19 +612,21 @@
 
             int i3 = tri1.indices[e30];
 
+            IEnumerable<int> parents = tri0.parents.Concat(tri1.parents);
+
             _t[t0] = new CDTTriangle(
                 new Circle(_v[i3], _v[i1], _v[i2]),
                 i3, i1, i2,
                 t1, tri0.adjacent[e12], tri1.adjacent[e23],
                 false, tri0.constraint[e12], tri1.constraint[e23],
-                tri0.parent);
+                parents);
 
             _t[t1] = new CDTTriangle(
                new Circle(_v[i1], _v[i3], _v[i0]),
                i1, i3, i0,
                t0, tri1.adjacent[e30], tri0.adjacent[e01],
                false, tri1.constraint[e30], tri0.constraint[e01],
-               tri1.parent);
+               parents);
 
             SetAdjacent(t0, 1);
             SetAdjacent(t0, 2);

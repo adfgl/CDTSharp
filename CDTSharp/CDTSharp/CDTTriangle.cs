@@ -11,20 +11,20 @@
         public readonly Circle circle;
         public readonly int[] indices, adjacent;
         public readonly bool[] constraint;
-        public int parent;
+        public readonly List<int> parents;
 
         public CDTTriangle(
             Circle circle,
             int v0, int v1, int v2,
             int adj0 = NO_INDEX, int adj1 = NO_INDEX, int adj2 = NO_INDEX,
             bool con0 = false, bool con1 = false, bool con2 = false,
-            int parent = NO_INDEX)
+            IEnumerable<int> parents = null)
         {
             this.circle = circle;
             this.indices = [v0, v1, v2];
             this.adjacent = [adj0, adj1, adj2];
             this.constraint = [con0, con1, con2];
-            this.parent = parent;
+            this.parents = parents != null ? new List<int>(parents) : new List<int>();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
