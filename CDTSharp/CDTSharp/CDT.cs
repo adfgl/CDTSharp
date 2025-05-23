@@ -1,8 +1,6 @@
 ﻿namespace CDTSharp
 {
     using System;
-    using System.Numerics;
-    using System.Reflection;
     using System.Runtime.CompilerServices;
 
     public class CDT
@@ -14,6 +12,7 @@
         readonly List<Triangle> _t = new List<Triangle>();
         readonly HashSet<int> _affected = new HashSet<int>();
         readonly Stack<Edge> _toLegalize = new Stack<Edge>();
+        readonly List<(int, int)> _constrainedEdges = new List<(int, int)>();
 
         public CDT Triangulate(CDTInput input)
         {
@@ -21,8 +20,10 @@
             _t.Clear();
             _affected.Clear();
             _toLegalize.Clear();
+            _constrainedEdges.Clear();
 
             InputPreprocessor processed = new InputPreprocessor(input);
+            _constrainedEdges.AddRange(processed.Constraints);
 
             AddSuperTriangle(processed.Rect);
 
@@ -47,9 +48,9 @@
             return this;
         }
 
-
         public List<Vec2> Vertices => _v;
         public List<Triangle> Triangles => _t;
+        public List<(int, int)> Constraints => _constrainedEdges;
 
         void MarkHoles(List<(Polygon, Polygon[])> polys, List<Vec2> vertices)
         {
@@ -134,7 +135,9 @@
             {
                 Triangle tri = _t[i];
                 if (IsBadTriangle(tri, minAngle, maxArea))
+                {
                     triangleQueue.Enqueue(i);
+                }
 
                 for (int j = 0; j < 3; j++)
                 {
@@ -153,8 +156,6 @@
             double minSqrLen = (4.0 * maxArea) / Math.Sqrt(3) * 0.25;
             while (segmentQueue.Count > 0 || triangleQueue.Count > 0)
             {
-                _affected.Clear();
-
                 if (segmentQueue.Count > 0)
                 {
                     Segment seg = segmentQueue.Dequeue();
@@ -268,28 +269,20 @@
             return area > maxAllowedArea;
         }
 
-
         int Insert(Vec2 vertex, int triangle, int edge)
         {
             int vertexindex = _v.Count;
             _v.Add(vertex);
 
-            int[] affected;
             if (edge == NO_INDEX)
             {
-                affected = SplitTriangle(triangle, vertexindex);
+                SplitTriangle(triangle, vertexindex);
             }
             else
             {
-                affected = SplitEdge(triangle, edge, vertexindex);
+                SplitEdge(triangle, edge, vertexindex);
             }
-
             Legalize();
-
-            foreach (int i in affected)
-            {
-                _affected.Add(i);
-            }
             return vertexindex;
         }
 
@@ -370,6 +363,12 @@
                 }
                 _t[i] = tri;
             }
+
+            for (int i = 0; i < _constrainedEdges.Count; i++)
+            {
+                (int a, int b) = _constrainedEdges[i];
+                _constrainedEdges[i] = (a - 3,  b - 3);
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -434,10 +433,7 @@
             return Vec2.Cross(a, b, c) * Vec2.Cross(c, d, a) >= 0;
         }
 
-
-   
-
-        public int[] SplitEdge(int triangleIndex, int edgeIndex, int vertexIndex)
+        public void SplitEdge(int triangleIndex, int edgeIndex, int vertexIndex)
         {
             /*
                         v1                          v1            
@@ -525,10 +521,54 @@
                 int ti = inds[i];
                 SetAdjacent(ti, 0);
                 _toLegalize.Push(new Edge(ti, 0));
+                _toLegalize.Push(new Edge(ti, 1));
+                _toLegalize.Push(new Edge(ti, 2));
             }
-            return inds;
         }
 
+        public void SplitTriangle(int triangleIndex, int vertexIndex)
+        {
+            Triangle t = _t[triangleIndex];
+
+            int t0 = triangleIndex;
+            int t1 = _t.Count;
+            int t2 = t1 + 1;
+
+            int i0 = t.indices[0];
+            int i1 = t.indices[1];
+            int i2 = t.indices[2];
+            int i3 = vertexIndex;
+
+            Vec2 v = _v[i3];
+            _t[t0] = new Triangle(
+                new Circle(_v[i0], _v[i1], v),
+               i0, i1, i3,
+               t.adjacent[0], t1, t2,
+               t.constraint[0], false, false,
+               t.parent);
+
+            _t.Add(new Triangle(
+                new Circle(_v[i1], _v[i2], v),
+               i1, i2, i3,
+               t.adjacent[1], t2, t0,
+               t.constraint[1], false, false,
+               t.parent));
+
+            _t.Add(new Triangle(
+                new Circle(_v[i2], _v[i0], v),
+               i2, i0, i3,
+               t.adjacent[2], t0, t1,
+               t.constraint[2], false, false,
+               t.parent));
+
+            int[] inds = [t0, t1, t2];
+            for (int i = 0; i < 3; i++)
+            {
+                int ti = inds[i];
+                SetAdjacent(ti, 0);
+                _toLegalize.Push(new Edge(ti, 0));
+            }
+        }
 
         public void FlipEdge(int triangleIndex, int edgeIndex)
         {
@@ -596,50 +636,6 @@
             _toLegalize.Push(new Edge(t1, 1));
         }
 
-        public int[] SplitTriangle(int triangleIndex, int vertexIndex)
-        {
-            Triangle t = _t[triangleIndex];
-
-            int t0 = triangleIndex;
-            int t1 = _t.Count;
-            int t2 = t1 + 1;
-
-            int i0 = t.indices[0];
-            int i1 = t.indices[1];
-            int i2 = t.indices[2];
-            int i3 = vertexIndex;
-
-            Vec2 v = _v[i3];
-            _t[t0] = new Triangle(
-                new Circle(_v[i0], _v[i1], v),
-               i0, i1, i3,
-               t.adjacent[0], t1, t2,
-               t.constraint[0], false, false,
-               t.parent);
-
-            _t.Add(new Triangle(
-                new Circle(_v[i1], _v[i2], v),
-               i1, i2, i3,
-               t.adjacent[1], t2, t0,
-               t.constraint[1], false, false,
-               t.parent));
-
-            _t.Add(new Triangle(
-                new Circle(_v[i2], _v[i0], v),
-               i2, i0, i3,
-               t.adjacent[2], t0, t1,
-               t.constraint[2], false, false,
-               t.parent));
-
-            int[] inds = [t0, t1, t2];
-            for (int i = 0; i < 3; i++)
-            {
-                int ti = inds[i];
-                SetAdjacent(ti, 0);
-                _toLegalize.Push(new Edge(ti, 0));
-            }
-            return inds;
-        }
 
         public bool ShouldFlip(int triangleIndex, int edgeIndex)
         {
@@ -806,13 +802,16 @@
             while (_toLegalize.Count > 0)
             {
                 var (t0, edge) = _toLegalize.Pop();
+
+                int t1 = _t[t0].adjacent[edge];
+                if (t1 != NO_INDEX)
+                {
+                    _affected.Add(t1);
+                }
+
                 if (ShouldFlip(t0, edge))
                 {
                     FlipEdge(t0, edge);
-
-                    _affected.Add(t0);
-                    int t1 = _t[t0].adjacent[edge];
-                    if (t1 != NO_INDEX) _affected.Add(t1);
                 }
             }
         }
@@ -868,10 +867,6 @@
                 return;
             }
 
-            List<Triangle> triangles = _t;
-            List<Vec2> vertices = _v;
-            Stack<Edge> legalize = _toLegalize;
-
             Edge edge = FindEdge(aIndex, bIndex);
             int triangle = edge.triangle;
             if (edge.index != NO_INDEX)
@@ -881,23 +876,23 @@
             }
 
 
-            Vec2 p1 = vertices[aIndex];
-            Vec2 p2 = vertices[bIndex];
+            Vec2 p1 = _v[aIndex];
+            Vec2 p2 = _v[bIndex];
 
             int current = EntranceTriangle(triangle, aIndex, bIndex);
             while (true)
             {
-                Triangle currentTri = triangles[current];
+                Triangle currentTri = _t[current];
                 for (int i = 0; i < 3; i++)
                 {
                     if (currentTri.constraint[i]) continue;
 
                     int a = currentTri.indices[i];
                     int b = currentTri.indices[Triangle.NEXT[i]];
-                    if (Intersect(p1, p2, vertices[a], vertices[b], out _))
+                    if (Intersect(p1, p2, _v[a], _v[b], out _))
                     {
                         FlipEdge(current, i);
-                        SetConstraint(current, triangles[current].IndexOfInvariant(a, b));
+                        SetConstraint(current, _t[current].IndexOfInvariant(a, b));
                         Legalize();
                     }
                 }
@@ -908,8 +903,8 @@
                 bool advanced = false;
                 for (int i = 0; i < 3; i++)
                 {
-                    Vec2 q1 = vertices[currentTri.indices[i]];
-                    Vec2 q2 = vertices[currentTri.indices[Triangle.NEXT[i]]];
+                    Vec2 q1 = _v[currentTri.indices[i]];
+                    Vec2 q2 = _v[currentTri.indices[Triangle.NEXT[i]]];
                     if (Vec2.Cross(q1, q2, p2) > 0)
                     {
                         current = currentTri.adjacent[i];
