@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
@@ -24,13 +25,30 @@ namespace CDTSharp
             _vertices = new List<Vec2>();
             _constraints = new List<(int, int)>();
             _polygons = new List<(Polygon, Polygon[])>();
+            List<Constraint> constraints = new List<Constraint>();
 
             Rect rect = Rect.Empty;
             for (int i = 0; i < input.Polygons.Count; i++)
             {
-                rect = rect.Union(ProcessPolygon(i, input.Polygons[i], eps));
+                rect = rect.Union(ProcessPolygon(constraints, i, input.Polygons[i], eps));
             }
             _rect = rect;
+
+
+            HashSet<Segment> seen = new HashSet<Segment>();
+            foreach (Constraint item in constraints)
+            {
+                var (a, b) = item;
+                int ai = AddPoint(_vertices, a, eps);
+                int bi = AddPoint(_vertices, b, eps);
+
+                if (ai == bi) continue;
+
+                if (seen.Add(new Segment(ai, bi)))
+                {
+                    _constraints.Add((ai, bi));
+                }
+            }
         }
 
         public CDTInput Input => _input;
@@ -51,14 +69,12 @@ namespace CDTSharp
             return false;
         }
 
-        Rect ProcessPolygon(int index, CDTPolygon cdtPolygon, double eps)
+        Rect ProcessPolygon(List<Constraint> constraints, int index, CDTPolygon cdtPolygon, double eps)
         {
             (List<Vec2>, Rect) contour = ExtractContour(cdtPolygon.Contour, eps);
             List<(List<Vec2>, Rect)> holeContours = new List<(List<Vec2>, Rect)>();
             if (cdtPolygon.Holes != null) ExtractHoles(holeContours, contour, cdtPolygon.Holes, eps);
        
-            List<Constraint> constraints = new List<Constraint>();
-
             ExtractConstraints(constraints, contour.Item1, EConstraint.Contour, eps);
             foreach ((List<Vec2>, Rect) item in holeContours)
             {
@@ -118,21 +134,6 @@ namespace CDTSharp
             foreach (var item in pointConstraints)
             {
                 AddPoint(_vertices, item, eps);
-            }
-
-            HashSet<Segment> seen = new HashSet<Segment>();
-            foreach (Constraint item in constraints)
-            {
-                var (a, b) = item;
-                int ai = AddPoint(_vertices, a, eps);
-                int bi = AddPoint(_vertices, b, eps);
-
-                if (ai == bi) continue;
-
-                if (seen.Add(new Segment(ai, bi)))
-                {
-                    _constraints.Add((ai, bi));
-                }
             }
             return contour.Item2;
         }
@@ -194,20 +195,7 @@ namespace CDTSharp
 
                     if (existing.OnNode(a1, eps) || existing.OnNode(a2, eps))
                         continue;
-
-                    if (CDT.Intersect(a1, a2, b1, b2, out Vec2 inter))
-                    {
-                        constraints.RemoveAt(i);
-                        var (c1a, c1b) = current.Split(inter);
-                        var (c2a, c2b) = existing.Split(inter);
-                        toProcess.Push(c1a);
-                        toProcess.Push(c1b);
-                        toProcess.Push(c2a);
-                        toProcess.Push(c2b);
-                        split = true;
-                        break;
-                    }
-
+              
                     if (existing.OnEdge(a1, eps))
                     {
                         constraints.RemoveAt(i);
@@ -248,6 +236,19 @@ namespace CDTSharp
                         toProcess.Push(c1);
                         toProcess.Push(c2);
                         toProcess.Push(existing);
+                        split = true;
+                        break;
+                    }
+
+                    if (CDT.Intersect(a1, a2, b1, b2, out Vec2 inter))
+                    {
+                        constraints.RemoveAt(i);
+                        var (c1a, c1b) = current.Split(inter);
+                        var (c2a, c2b) = existing.Split(inter);
+                        toProcess.Push(c1a);
+                        toProcess.Push(c1b);
+                        toProcess.Push(c2a);
+                        toProcess.Push(c2b);
                         split = true;
                         break;
                     }

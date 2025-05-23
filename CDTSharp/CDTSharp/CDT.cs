@@ -363,12 +363,6 @@
                 }
                 _t[i] = tri;
             }
-
-            for (int i = 0; i < _constrainedEdges.Count; i++)
-            {
-                (int a, int b) = _constrainedEdges[i];
-                _constrainedEdges[i] = (a - 3,  b - 3);
-            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

@@ -8,7 +8,7 @@ namespace CDTSharp
 {
     public static class CDTEx
     {
-        public static string ToSvg(this CDT cdt, int size = 1000, float padding = 10f,  bool fill = true)
+        public static string ToSvg(this CDT cdt, int size = 1000, float padding = 10f, bool fill = true)
         {
             if (cdt.Vertices.Count == 0 || cdt.Triangles.Count == 0)
                 return "<svg xmlns='http://www.w3.org/2000/svg'/>";
@@ -30,7 +30,6 @@ namespace CDTSharp
             sb.Append("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 ");
             sb.Append(size); sb.Append(' '); sb.Append(size); sb.Append("'>");
 
-
             if (fill)
             {
                 foreach (var tri in cdt.Triangles)
@@ -42,13 +41,13 @@ namespace CDTSharp
                     var (x2, y2) = Project(b.x, b.y);
                     var (x3, y3) = Project(c.x, c.y);
 
-                    string color = ColorFromId(tri.parent );
+                    string color = ColorFromId(tri.parent);
                     sb.Append($"<polygon points='{x1:F1},{y1:F1} {x2:F1},{y2:F1} {x3:F1},{y3:F1}' fill='{color}' fill-opacity='0.5' stroke='#000' stroke-width='1'/>");
                 }
             }
             else
             {
-                // Deduplicated triangle edge rendering
+                // Wireframe without fill, deduplicated
                 var drawn = new HashSet<(int, int)>();
                 sb.Append("<path d='");
                 foreach (var tri in cdt.Triangles)
@@ -70,6 +69,17 @@ namespace CDTSharp
                 sb.Append("' fill='none' stroke='#000' stroke-width='1'/>");
             }
 
+            // === Draw constraint edges ===
+            sb.Append("<path d='");
+            foreach (var (a, b) in cdt.Constraints)
+            {
+                var va = cdt.Vertices[a];
+                var vb = cdt.Vertices[b];
+                var (x1, y1) = Project(va.x, va.y);
+                var (x2, y2) = Project(vb.x, vb.y);
+                sb.Append($"M{x1:F1},{y1:F1}L{x2:F1},{y2:F1}");
+            }
+            sb.Append("' fill='none' stroke='red' stroke-width='2.5'/>");
 
             sb.Append("</svg>");
             return sb.ToString();
@@ -81,6 +91,7 @@ namespace CDTSharp
                 return (sx, size - sy); // Y-flip
             }
         }
+
 
         static string ColorFromId(int id)
         {
