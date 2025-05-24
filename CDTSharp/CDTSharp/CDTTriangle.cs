@@ -23,6 +23,7 @@ namespace CDTSharp
             IEnumerable<int>? parents = null)
         {
             this.circle = circle;
+            this.area = area;
             this.super = v0 < 3 || v1 < 3 || v2 < 3;
             this.indices = [v0, v1, v2];
             this.adjacent = [adj0, adj1, adj2];

@@ -207,7 +207,7 @@ namespace CDTSharp
                         break;
                     }
 
-                    if (CDT.Intersect(a1, a2, b1, b2, out Vec2 inter))
+                    if (GeometryHelper.Intersect(a1, a2, b1, b2, out Vec2 inter))
                     {
                         constraints.RemoveAt(i);
                         var (c1a, c1b) = current.Split(inter);

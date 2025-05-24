@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Data;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
+﻿
 namespace CDTSharp
 {
     public enum EConstraint
@@ -42,7 +36,7 @@ namespace CDTSharp
 
         public bool OnEdge(Vec2 v, double eps)
         {
-            return CDT.OnSegment(a, b, v, eps);
+            return GeometryHelper.OnSegment(a, b, v, eps);
         }
     }
 }

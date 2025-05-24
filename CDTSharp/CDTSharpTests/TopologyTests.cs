@@ -218,7 +218,7 @@ namespace CDTSharpTests
             Vec2 v2 = new Vec2(+1, 0);
             Vec2 v3 = new Vec2(0, -1);
 
-            Assert.True(ConvexQuad(v0, v1, v2, v3));
+            Assert.True(GeometryHelper.ConvexQuad(v0, v1, v2, v3));
         }
 
         [Fact]
@@ -229,7 +229,7 @@ namespace CDTSharpTests
             Vec2 v2 = new Vec2(+1, 0);
             Vec2 v3 = new Vec2(0, -1);
 
-            Assert.True(ConvexQuad(v3, v2, v1, v0));
+            Assert.True(GeometryHelper.ConvexQuad(v3, v2, v1, v0));
         }
 
         [Fact]
@@ -240,7 +240,7 @@ namespace CDTSharpTests
             Vec2 v2 = new Vec2(-0.75, 0);
             Vec2 v3 = new Vec2(0, -1);
 
-            Assert.False(ConvexQuad(v0, v1, v2, v3));
+            Assert.False(GeometryHelper.ConvexQuad(v0, v1, v2, v3));
         }
 
         [Fact]
@@ -249,7 +249,7 @@ namespace CDTSharpTests
             Vec2 p1 = new Vec2(-50, -50), p2 = new Vec2(+50, +50);
             Vec2 q1 = new Vec2(-50, +50), q2 = new Vec2(+50, -50);
 
-            Assert.True(Intersect(p1, p2, q1, q2, out Vec2 inter));
+            Assert.True(GeometryHelper.Intersect(p1, p2, q1, q2, out Vec2 inter));
             Assert.Equal(0, inter.x);
             Assert.Equal(0, inter.y);
         }
@@ -259,8 +259,8 @@ namespace CDTSharpTests
         {
             Vec2 p1 = new Vec2(0, -50), p2 = new Vec2(0, +50);
             Vec2 q1 = new Vec2(20, +50), q2 = new Vec2(20, -50);
-
-            Assert.False(Intersect(p1, p2, q1, q2, out Vec2 inter));
+                
+            Assert.False(GeometryHelper.Intersect(p1, p2, q1, q2, out Vec2 inter));
             Assert.Equal(Double.NaN, inter.x);
             Assert.Equal(Double.NaN, inter.y);
         }
@@ -271,7 +271,7 @@ namespace CDTSharpTests
             Vec2 p1 = new Vec2(0, -50), p2 = new Vec2(0, +50);
             Vec2 q1 = new Vec2(0, -25), q2 = new Vec2(0, +25);
 
-            Assert.False(Intersect(p1, p2, q1, q2, out Vec2 inter));
+            Assert.False(GeometryHelper.Intersect(p1, p2, q1, q2, out Vec2 inter));
             Assert.Equal(Double.NaN, inter.x);
             Assert.Equal(Double.NaN, inter.y);
         }
@@ -282,7 +282,7 @@ namespace CDTSharpTests
             Vec2 p1 = new Vec2(0, -50), p2 = new Vec2(0, +50);
             Vec2 q1 = p1, q2 = new Vec2(0, -70);
 
-            Assert.False(Intersect(p1, p2, q1, q2, out Vec2 inter));
+            Assert.False(GeometryHelper.Intersect(p1, p2, q1, q2, out Vec2 inter));
             Assert.Equal(Double.NaN, inter.x);
             Assert.Equal(Double.NaN, inter.y);
         }
@@ -293,7 +293,7 @@ namespace CDTSharpTests
             Vec2 p1 = new Vec2(0, -50), p2 = new Vec2(0, +50);
             Vec2 q1 = new Vec2(0, 0), q2 = new Vec2(50, 0);
 
-            Assert.True(Intersect(p1, p2, q1, q2, out Vec2 inter));
+            Assert.True(GeometryHelper.Intersect(p1, p2, q1, q2, out Vec2 inter));
             Assert.Equal(q1.x, inter.x);
             Assert.Equal(q1.y, inter.y);
         }
@@ -303,21 +303,21 @@ namespace CDTSharpTests
         {
             Vec2 start = new Vec2(0, 0), end = new Vec2(0, 50);
             Vec2 center = (start + end) / 2;
-            Assert.True(OnSegment(start, end, center, 0));
+            Assert.True(GeometryHelper.OnSegment(start, end, center, 0));
         }
 
         [Fact]
         public void OnSegment_OnStart()
         {
             Vec2 start = new Vec2(0, 0), end = new Vec2(0, 50);
-            Assert.True(OnSegment(start, end, start, 0));
+            Assert.True(GeometryHelper.OnSegment(start, end, start, 0));
         }
 
         [Fact]
         public void OnSegment_OnEnd()
         {
             Vec2 start = new Vec2(0, 0), end = new Vec2(0, 50);
-            Assert.True(OnSegment(start, end, end, 0));
+            Assert.True(GeometryHelper.OnSegment(start, end, end, 0));
         }
     }
 }

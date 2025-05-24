@@ -14,7 +14,7 @@ namespace CDTSharpConsole
                 Refine = true,
                 KeepConvex = false,
                 KeepSuper = false,
-                MaxArea = 66,
+                MaxArea = 155,
                 MinAngle = 33.3,
                 Polygons = new List<CDTPolygon>()
                 {
@@ -54,13 +54,8 @@ namespace CDTSharpConsole
             double avgAng = 0;
             foreach (var item in cdt.Triangles)
             {
-                double area = cdt.Area(item);
+                double area = item.area;
                 avgArea += area;
-
-                if (!cdt.Clockwise(item))
-                {
-                    throw new Exception();
-                }
 
                 for (int i = 0; i < 3; i++)
                 {

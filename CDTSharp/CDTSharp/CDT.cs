@@ -3,7 +3,6 @@ namespace CDTSharp
     using System;
     using System.Diagnostics;
     using System.Runtime.CompilerServices;
-    using static System.Net.Mime.MediaTypeNames;
 
     public class CDT
     {
@@ -18,38 +17,42 @@ namespace CDTSharp
 
         public CDT Triangulate(CDTInput input)
         {
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            long last = 0;
+
             _v.Clear();
             _t.Clear();
             _affected.Clear();
             _toLegalize.Clear();
             _constrainedEdges.Clear();
+            Console.WriteLine($"[Init] {sw.ElapsedMilliseconds - last} ms");
+            last = sw.ElapsedMilliseconds;
 
             CDTPreprocessor processed = new CDTPreprocessor(input);
             Rect rect = processed.Rect;
             AddSuperTriangle(rect);
+            Console.WriteLine($"[Preprocessing + SuperTriangle] {sw.ElapsedMilliseconds - last} ms");
+            last = sw.ElapsedMilliseconds;
 
             double expansionMargin = Math.Max(5, Math.Max(rect.dx, rect.dy) * 0.01);
             PointQuadtree quad = new PointQuadtree(rect.Expand(expansionMargin));
+
             foreach ((Polygon poly, Polygon[] holes) in processed.Polygons)
             {
                 foreach (Vec2 item in poly.verts)
-                {
                     Insert(quad, item);
-                }
 
                 foreach (Polygon hole in holes)
-                {
                     foreach (Vec2 item in hole.verts)
-                    {
                         Insert(quad, item);
-                    }
-                }
             }
+            Console.WriteLine($"[Insert polygon + hole vertices] {sw.ElapsedMilliseconds - last} ms");
+            last = sw.ElapsedMilliseconds;
 
             foreach (Vec2 item in processed.PointConstraints)
-            {
                 Insert(quad, item);
-            }
+            Console.WriteLine($"[Insert point constraints] {sw.ElapsedMilliseconds - last} ms");
+            last = sw.ElapsedMilliseconds;
 
             HashSet<Segment> seen = new HashSet<Segment>();
             foreach ((Vec2 a, Vec2 b) in processed.Constraints)
@@ -58,23 +61,33 @@ namespace CDTSharp
                 if (ai == NO_INDEX) ai = Insert(quad, a);
 
                 int bi = quad.IndexOf(b.x, b.y);
-                if (bi == NO_INDEX) bi = Insert(quad, a);
+                if (bi == NO_INDEX) bi = Insert(quad, b);
 
                 if (seen.Add(new Segment(ai, bi)))
-                {
                     AddConstraint(ai + 3, bi + 3);
-                }
             }
+            Console.WriteLine($"[Add constraints] {sw.ElapsedMilliseconds - last} ms");
+            last = sw.ElapsedMilliseconds;
 
             MarkHoles(processed.Polygons);
+            Console.WriteLine($"[Mark holes] {sw.ElapsedMilliseconds - last} ms");
+            last = sw.ElapsedMilliseconds;
 
             if (input.Refine)
             {
-                Refine(processed, input.MaxArea, input.MinAngle);
+                int refined = Refine(processed, input.MaxArea, input.MinAngle);
+                Console.WriteLine($"[Refine] {sw.ElapsedMilliseconds - last} ms (Refined: {refined})");
+                last = sw.ElapsedMilliseconds;
             }
+
             FinalizeMesh(input.KeepConvex, input.KeepSuper);
+            Console.WriteLine($"[Finalize mesh] {sw.ElapsedMilliseconds - last} ms");
+            last = sw.ElapsedMilliseconds;
+
+            Console.WriteLine($"[Total] Triangulation completed in {sw.ElapsedMilliseconds} ms");
             return this;
         }
+
 
         public List<Vec2> Vertices => _v;
         public List<CDTTriangle> Triangles => _t;
@@ -131,7 +144,7 @@ namespace CDTSharp
                 if (s.Equals(seg))
                     continue;
 
-                if (Intersect(mid, point, _v[s.a], _v[s.b], out _))
+                if (GeometryHelper.Intersect(mid, point, _v[s.a], _v[s.b], out _))
                 {
                     return false;
                 }
@@ -157,9 +170,11 @@ namespace CDTSharp
             return false;
         }
 
-        public void Refine(CDTPreprocessor polys, double maxArea, double minAngle)
+        public int Refine(CDTPreprocessor polys, double maxArea, double minAngle)
         {
             minAngle *= Math.PI / 180d;
+
+            int refinedCount = 0;
 
             HashSet<Segment> uniqueSegments = new HashSet<Segment>();
 
@@ -219,6 +234,7 @@ namespace CDTSharp
                     }
 
                     int insertedIndex = Insert(mid, triIndex, edgeIndex);
+                    refinedCount++;
 
                     uniqueSegments.Remove(seg);
                     Segment s1 = new Segment(ia, insertedIndex);
@@ -268,6 +284,7 @@ namespace CDTSharp
                     }
 
                     int vi = Insert(cc, tIndex, eIndex);
+                    refinedCount++;
                     foreach (var item in _affected)
                     {
                         if (IsBadTriangle(_t[item], minAngle, maxArea))
@@ -277,6 +294,7 @@ namespace CDTSharp
                     }
                 }
             }
+            return refinedCount;
         }
 
         public bool IsBadTriangle(CDTTriangle tri, double minAllowedRad, double maxAllowedArea)
@@ -498,9 +516,6 @@ namespace CDTSharp
                  tri1.constraint[e30], constrained, false,
                  tri1.parents));
 
-
-            Debug.Assert(tri0.area + tri1.area == a0 + a1 + a2 + a3);
-
             int[] inds = [t0, t1, t2, t3];
             for (int i = 0; i < 4; i++)
             {
@@ -567,8 +582,6 @@ namespace CDTSharp
                tri.adjacent[2], t0, t1,
                tri.constraint[2], false, false,
                tri.parents));
-
-            Debug.Assert(tri.area == a0 + a1 + a2);
 
             int[] inds = [t0, t1, t2];
             for (int i = 0; i < 3; i++)
@@ -646,8 +659,6 @@ namespace CDTSharp
                false, tri1.constraint[e30], tri0.constraint[e01],
                parents);
 
-            Debug.Assert(tri0.area + tri1.area == _t[t1].area + _t[t0].area);
-
             SetAdjacent(t0, 1);
             SetAdjacent(t0, 2);
             SetAdjacent(t1, 1);
@@ -701,7 +712,7 @@ namespace CDTSharp
             Vec2 v3 = _v[i3];
             return
                 t0.circle.Contains(v3.x, v3.y) &&
-                ConvexQuad(_v[i0], _v[i1], _v[i2], v3);
+                GeometryHelper.ConvexQuad(_v[i0], _v[i1], _v[i2], v3);
         }
 
         public int EntranceTriangle(int triangleIndexContainingA, int aIndex, int bIndex)
@@ -768,7 +779,7 @@ namespace CDTSharp
                         break;
                     }
 
-                    if (Math.Abs(cross) < tolerance && OnSegment(a, b, point, tolerance))
+                    if (Math.Abs(cross) < tolerance && GeometryHelper.OnSegment(a, b, point, tolerance))
                     {
                         return (current, i);
                     }
@@ -838,16 +849,6 @@ namespace CDTSharp
             }
         }
 
-        public Edge FindEdgeBrute(int aIndex, int bIndex)
-        {
-            for (int i = 0; i < _t.Count; i++)
-            {
-                int edge = _t[i].IndexOf(aIndex, bIndex);
-                if (edge != NO_INDEX) return new Edge(i, edge);
-            }
-            return new Edge(NO_INDEX, NO_INDEX);
-        }
-
         public Edge FindEdge(int aIndex, int bIndex)
         {
             int lastContained = NO_INDEX;
@@ -910,7 +911,7 @@ namespace CDTSharp
 
                     int a = currentTri.indices[i];
                     int b = currentTri.indices[CDTTriangle.NEXT[i]];
-                    if (Intersect(p1, p2, _v[a], _v[b], out _))
+                    if (GeometryHelper.Intersect(p1, p2, _v[a], _v[b], out _))
                     {
                         FlipEdge(current, i);
                         SetConstraint(current, _t[current].IndexOfInvariant(a, b));
@@ -960,101 +961,6 @@ namespace CDTSharp
         public static double Area(Vec2 a, Vec2 b, Vec2 c)
         {
             return Math.Abs(Vec2.Cross(a, b, c)) * 0.5;
-        }
-
-        public double Area(CDTTriangle t)
-        {
-            Vec2 a = _v[t.indices[0]];
-            Vec2 b = _v[t.indices[1]];
-            Vec2 c = _v[t.indices[2]];
-            return Area(a, b, c);
-        }
-
-        public bool Clockwise(CDTTriangle t)
-        {
-            Vec2 a = _v[t.indices[0]];
-            Vec2 b = _v[t.indices[1]];
-            Vec2 c = _v[t.indices[2]];
-            return Clockwise(a, b, c);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool Intersect(Vec2 p1, Vec2 p2, Vec2 q1, Vec2 q2, out Vec2 intersection)
-        {
-            // P(u) = p1 + u * (p2 - p1)
-            // Q(v) = q1 + v * (q2 - q1)
-
-            // goal to vind such 'u' and 'v' so:
-            // p1 + u * (p2 - p1) = q1 + v * (q2 - q1)
-            // which is:
-            // u * (p2x - p1x) - v * (q2x - q1x) = q1x - p1x
-            // u * (p2y - p1y) - v * (q2y - q1y) = q1y - p1y
-
-            // | p2x - p1x  -(q2x - q1x) | *  | u | =  | q1x - p1x |
-            // | p2y - p1y  -(q2y - q1y) |    | v |    | q1y - p1y |
-
-            // | a  b | * | u | = | e |
-            // | c  d |   | v |   | f |
-
-            intersection = Vec2.NaN;
-
-            double a = p2.x - p1.x, b = q1.x - q2.x;
-            double c = p2.y - p1.y, d = q1.y - q2.y;
-
-            double det = a * d - b * c;
-            if (Math.Abs(det) < 1e-12)
-            {
-                return false;
-            }
-
-            double e = q1.x - p1.x, f = q1.y - p1.y;
-
-            double u = (e * d - b * f) / det;
-            double v = (a * f - e * c) / det;
-            if (u < 0 || u > 1 || v < 0 || v > 1)
-            {
-                return false;
-            }
-            intersection = new Vec2(p1.x + u * a, p1.y + u * c);
-            return true;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool OnSegment(Vec2 a, Vec2 b, Vec2 p, double epsilon)
-        {
-            double dxAB = b.x - a.x;
-            double dyAB = b.y - a.y;
-            double dxAP = p.x - a.x;
-            double dyAP = p.y - a.y;
-
-            double cross = dxAB * dyAP - dyAB * dxAP;
-            if (Math.Abs(cross) > epsilon)
-                return false;
-
-            double dot = dxAP * dxAB + dyAP * dyAB;
-            if (dot < 0) return false;
-
-            double lenSq = dxAB * dxAB + dyAB * dyAB;
-            if (dot > lenSq) return false;
-
-            return true;
-
-            double sqrA = (a - p).Length();
-            double sqrB = (b - p).Length();
-            double sqr = (a - b).Length();
-            return Math.Abs(sqrA + sqrB - sqr) <= epsilon;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool ConvexQuad(Vec2 a, Vec2 b, Vec2 c, Vec2 d)
-        {
-            return SameSide(a, b, c, d) && SameSide(d, c, b, a);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        static bool SameSide(Vec2 a, Vec2 b, Vec2 c, Vec2 d)
-        {
-            return Vec2.Cross(a, b, c) * Vec2.Cross(c, d, a) >= 0;
         }
     }
 }

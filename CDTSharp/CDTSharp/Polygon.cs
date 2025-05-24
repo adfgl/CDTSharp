@@ -56,7 +56,7 @@
                 {
                     Vec2 q1 = ab[j];
                     Vec2 q2 = ab[(j + 1) % bc];
-                    if (CDT.Intersect(p1, p2, q1, q2, out _))
+                    if (GeometryHelper.Intersect(p1, p2, q1, q2, out _))
                     {
                         return true;
                     }
