@@ -296,9 +296,7 @@ namespace CDTSharp
 
                 if (deg < minRad) minRad = deg;
             }
-
-            double area = Area(_v[tri.indices[0]], _v[tri.indices[1]], _v[tri.indices[2]]);
-            return area > maxAllowedArea;
+            return tri.area > maxAllowedArea;
         }
 
         int Insert(PointQuadtree quad, Vec2 v)
@@ -345,7 +343,9 @@ namespace CDTSharp
             _v.Add(b);
             _v.Add(c);
 
-            _t.Add(new CDTTriangle(new Circle(a, b, c), 0, 1, 2));
+            Circle c = new Circle(a, b, c);
+            double a = Area(a, b, c);
+            _t.Add(new CDTTriangle(c, a, 0, 1, 2));
         }
 
         public void FinalizeMesh(bool keepConvex = false, bool keepSuper = false)
@@ -546,7 +546,7 @@ namespace CDTSharp
             double a0 = Area(v0, v1, v4);
             Circle c0 = new Circle(v0, v1, v4);
             _t[t0] = new CDTTriangle(
-                c0, 
+                c0, a0,
                 i0, i1, i4,
                 tri0.adjacent[e01], t1, t3,
                 tri0.constraint[e01], false, constrained,
@@ -555,7 +555,7 @@ namespace CDTSharp
             dounle a1 = tri0.area - a0;
             Circle c1 = new Circle(v1, v2, v4);
             _t[t1] = new CDTTriangle(
-                c1,
+                c1, a1,
                 i1, i2, i4,
                 tri0.adjacent[e12], t2, t0,
                 tri0.constraint[e12], constrained, false,
@@ -564,7 +564,7 @@ namespace CDTSharp
             double a2 = Area(v2, v3, v4);
             Circle c2 = new Circle(v2, v3, v4);
             _t.Add(new CDTTriangle(
-                 c2,
+                 c2, a2,
                  i2, i3, i4,
                  tri1.adjacent[e23], t3, t1,
                  tri1.constraint[e23], false, constrained,
@@ -573,7 +573,7 @@ namespace CDTSharp
             double a3 = triq.area - a2;
             Circle c3 = new Circle(v3, v0, v4);
             _t.Add(new CDTTriangle(
-                 c3,
+                 c3, a3,
                  i3, i0, i4,
                  tri1.adjacent[e30], t0, t2,
                  tri1.constraint[e30], constrained, false,
@@ -611,7 +611,7 @@ namespace CDTSharp
             double a0 = Area(v0, v1, v3);
             Circle c0 = new Circle(v0, v1, v3);
             _t[t0] = new CDTTriangle(
-                c0,
+                c0, a0,
                i0, i1, i3,
                t.adjacent[0], t1, t2,
                t.constraint[0], false, false,
@@ -620,7 +620,7 @@ namespace CDTSharp
             double a1 = Area(v1, v2, v3);
             Circle c1 = new Circle(v1, v2, v3);
             _t.Add(new CDTTriangle(
-               c1,
+               c1, a1,
                i1, i2, i3,
                t.adjacent[1], t2, t0,
                t.constraint[1], false, false,
@@ -629,7 +629,7 @@ namespace CDTSharp
             double a2 = t.area - a0 - a1;
             Circle c2 = new Circle(v2, v0, v3);
             _t.Add(new CDTTriangle(
-                c2,
+                c2, a2,
                i2, i0, i3,
                t.adjacent[2], t0, t1,
                t.constraint[2], false, false,
@@ -696,7 +696,7 @@ namespace CDTSharp
             double a0 = Area(v3, v1, v2);
             Circle c0 = new Circle(v3, v1, v2);
             _t[t0] = new CDTTriangle(
-                c0,
+                c0, a0,
                 i3, i1, i2,
                 t1, tri0.adjacent[e12], tri1.adjacent[e23],
                 false, tri0.constraint[e12], tri1.constraint[e23],
@@ -705,7 +705,7 @@ namespace CDTSharp
             double a1 = tri0.area + tri1.area - a0;
             Circle c1 = new Circle(v1, v3, v0);
             _t[t1] = new CDTTriangle(
-               c1,
+               c1, a1,
                i1, i3, i0,
                t0, tri1.adjacent[e30], tri0.adjacent[e01],
                false, tri1.constraint[e30], tri0.constraint[e01],
