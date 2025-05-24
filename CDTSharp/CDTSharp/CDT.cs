@@ -25,7 +25,7 @@
             CDTPreprocessor processed = new CDTPreprocessor(input);
             AddSuperTriangle(processed.Rect);
 
-            PointQuadtree quad = new PointQuadtree(processed.Rect);
+            PointQuadtree quad = new PointQuadtree(processed.Rect.Expand(10));
             foreach ((Polygon poly, Polygon[] holes) in processed.Polygons)
             {
                 foreach (Vec2 item in poly.verts)
@@ -86,12 +86,10 @@
                 foreach (var item in polys)
                 {
                     Polygon contour = item.Item1;
-                    Polygon[] holes = item.Item2;
-
-                    if (contour.Contains(x, y))
+                    if (item.Item1.Contains(x, y))
                     {
                         bool insideHole = false;
-                        foreach (var hole in holes)
+                        foreach (var hole in item.Item2)
                         {
                             if (hole.Contains(x, y))
                             {

@@ -95,6 +95,16 @@ namespace CDTSharp
             );
         }
 
+        public Rect Expand(double margin)
+        {
+            return new Rect(
+                minX - margin,
+                minY - margin,
+                maxX + margin,
+                maxY + margin
+            );
+        }
+
         public bool Intersection(Rect other, out Rect intersection)
         {
             double minX = Math.Max(this.minX, other.minX);

@@ -96,36 +96,45 @@ namespace CDTSharp
                     return x < cx ? Children[2] : Children[3];
             }
 
-            public void Query(double x, double y, List<Point> results, double eps = 1e-10)
+            public void Query(double x, double y, List<Point> results, ref int steps, double eps = 1e-10)
             {
+                steps++;
                 if (!Bounds.Contains(x, y)) return;
 
                 foreach (var item in Items)
+                {
                     if (Math.Abs(item.Value.x - x) < eps && Math.Abs(item.Value.y - y) < eps)
                         results.Add(item);
+                }
 
                 if (Children != null)
-                    GetChild(x, y).Query(x, y, results, eps);
+                {
+                    GetChild(x, y).Query(x, y, results, ref steps, eps);
+                }
             }
 
-            public void Query(Rect area, List<Vec2> results)
+            public void Query(Rect area, List<Point> results, ref int steps, double eps)
             {
+                steps++;
+
                 if (!Bounds.Intersects(area)) return;
 
                 foreach (var item in Items)
                 {
-                    if (area.Contains(item.Value.x, item.Value.y))
+                    var v = item.Value;
+                    double dx = v.x - area.Center().x;
+                    double dy = v.y - area.Center().y;
+                    if (Math.Abs(dx) <= eps && Math.Abs(dy) <= eps)
                     {
-                        results.Add(item.Value);
+                        results.Add(item);
                     }
-                       
                 }
 
                 if (Children != null)
                 {
                     foreach (var child in Children)
                     {
-                        child.Query(area, results);
+                        child.Query(area, results, ref steps, eps);
                     }
                 }
             }
@@ -174,14 +183,8 @@ namespace CDTSharp
         public List<Point> Query(double x, double y, double eps)
         {
             List<Point> results = new List<Point>();
-            root.Query(x, y, results, eps);
-            return results;
-        }
-
-        public List<Vec2> Query(Rect area)
-        {
-            var results = new List<Vec2>();
-            root.Query(area, results);
+            int steps = 0;
+            root.Query(x, y, results, ref steps, eps);
             return results;
         }
 
