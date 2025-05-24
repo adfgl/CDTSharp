@@ -533,47 +533,48 @@ namespace CDTSharp
             int e30 = CDTTriangle.PREV[e02];
 
             int i3 = tri1.indices[e30];
+            int i4 = vertexIndex;
 
             Vec2 v0 = _v[i0];
             Vec2 v1 = _v[i1];
             Vec2 v2 = _v[i2];
             Vec2 v3 = _v[i3];
-            Vec2 v = _v[vertexIndex];
+            Vec2 v4 = _v[i4];
 
             bool constrained = tri0.constraint[e20];
 
-            double a0 = Area(v0, v1, v);
-            Circle c0 = new Circle(v0, v1, v);
+            double a0 = Area(v0, v1, v4);
+            Circle c0 = new Circle(v0, v1, v4);
             _t[t0] = new CDTTriangle(
                 c0, 
-                i0, i1, vertexIndex,
+                i0, i1, i4,
                 tri0.adjacent[e01], t1, t3,
                 tri0.constraint[e01], false, constrained,
                 tri0.parents);
 
             dounle a1 = tri0.area - a0;
-            Circle c1 = new Circle(v1, v2, v);
+            Circle c1 = new Circle(v1, v2, v4);
             _t[t1] = new CDTTriangle(
                 c1,
-                i1, i2, vertexIndex,
+                i1, i2, i4,
                 tri0.adjacent[e12], t2, t0,
                 tri0.constraint[e12], constrained, false,
                 tri0.parents);
 
-            double a2 = Area(v2, v3, v);
-            Circle c2 = new Circle(v2, v3, v);
+            double a2 = Area(v2, v3, v4);
+            Circle c2 = new Circle(v2, v3, v4);
             _t.Add(new CDTTriangle(
                  c2,
-                 i2, i3, vertexIndex,
+                 i2, i3, i4,
                  tri1.adjacent[e23], t3, t1,
                  tri1.constraint[e23], false, constrained,
                  tri1.parents));
 
             double a3 = triq.area - a2;
-            Circle c3 = new Circle(v3, v0, v);
+            Circle c3 = new Circle(v3, v0, v4);
             _t.Add(new CDTTriangle(
                  c3,
-                 i3, i0, vertexIndex,
+                 i3, i0, i4,
                  tri1.adjacent[e30], t0, t2,
                  tri1.constraint[e30], constrained, false,
                  tri1.parents));
@@ -685,17 +686,26 @@ namespace CDTSharp
 
             int i3 = tri1.indices[e30];
 
+            Vec2 v0 = _v[i0];
+            Vec2 v1 = _v[i1];
+            Vec2 v2 = _v[i2];
+            Vec2 v3 = _v[i3];
+
             IEnumerable<int> parents = tri0.parents.Concat(tri1.parents);
 
+            double a0 = Area(v3, v1, v2);
+            Circle c0 = new Circle(v3, v1, v2);
             _t[t0] = new CDTTriangle(
-                new Circle(_v[i3], _v[i1], _v[i2]),
+                c0,
                 i3, i1, i2,
                 t1, tri0.adjacent[e12], tri1.adjacent[e23],
                 false, tri0.constraint[e12], tri1.constraint[e23],
                 parents);
 
+            double a1 = tri0.area + tri1.area - a0;
+            Circle c1 = new Circle(v1, v3, v0);
             _t[t1] = new CDTTriangle(
-               new Circle(_v[i1], _v[i3], _v[i0]),
+               c1,
                i1, i3, i0,
                t0, tri1.adjacent[e30], tri0.adjacent[e01],
                false, tri1.constraint[e30], tri0.constraint[e01],
