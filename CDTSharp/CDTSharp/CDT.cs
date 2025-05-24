@@ -49,6 +49,7 @@
                 Insert(quad, item);
             }
 
+            HashSet<Segment> seen = new HashSet<Segment>();
             foreach ((Vec2 a, Vec2 b) in processed.Constraints)
             {
                 int ai = quad.IndexOf(a);
@@ -57,7 +58,10 @@
                 int bi = quad.IndexOf(b);
                 if (bi == NO_INDEX) bi = Insert(quad, a);
 
-                AddConstraint(ai + 3, bi + 3);
+                if (seen.Add(new Segment(ai, bi)))
+                {
+                    AddConstraint(ai + 3, bi + 3);
+                }
             }
 
             MarkHoles(processed.Polygons);
@@ -183,6 +187,7 @@
             minSqrLen *= minSqrLen;
             while (segmentQueue.Count > 0 || triangleQueue.Count > 0)
             {
+                _affected.Clear();
                 if (segmentQueue.Count > 0)
                 {
                     Segment seg = segmentQueue.Dequeue();
@@ -855,15 +860,15 @@
             {
                 var (t0, edge) = _toLegalize.Pop();
 
-                int t1 = _t[t0].adjacent[edge];
-                if (t1 != NO_INDEX)
-                {
-                    _affected.Add(t1);
-                }
-
                 if (ShouldFlip(t0, edge))
                 {
                     FlipEdge(t0, edge);
+
+                    int t1 = _t[t0].adjacent[edge];
+                    if (t1 != NO_INDEX)
+                    {
+                        _affected.Add(t1);
+                    }
                 }
             }
         }
@@ -926,7 +931,6 @@
                 SetConstraint(triangle, edge.index);
                 return;
             }
-
 
             Vec2 p1 = _v[aIndex];
             Vec2 p2 = _v[bIndex];
