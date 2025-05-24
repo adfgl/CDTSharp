@@ -8,7 +8,7 @@ namespace CDTSharp
 {
     public static class CDTEx
     {
-        public static string ToSvg(this CDT cdt, int size = 1000, float padding = 10f, bool fill = true, bool drawConstraints = false)
+        public static string ToSvg(this CDT cdt, int size = 1000, float padding = 10f, bool fill = true, bool drawConstraints = false, bool drawCircles = false)
         {
             if (cdt.Vertices.Count == 0 || cdt.Triangles.Count == 0)
                 return "<svg xmlns='http://www.w3.org/2000/svg'/>";
@@ -82,7 +82,17 @@ namespace CDTSharp
                 }
                 sb.Append("' fill='none' stroke='red' stroke-width='2.5'/>");
             }
-     
+
+            if (drawCircles)
+            {
+                foreach (var tri in cdt.Triangles)
+                {
+                    var (cx, cy) = Project(tri.circle.x, tri.circle.y);
+                    double r = Math.Sqrt(tri.circle.radiusSquared) * scale;
+                    sb.Append($"<circle cx='{cx:F1}' cy='{cy:F1}' r='{r:F1}' fill='none' stroke='blue' stroke-opacity='0.6' stroke-width='1'/>");
+                }
+            }
+
 
             sb.Append("</svg>");
             return sb.ToString();
