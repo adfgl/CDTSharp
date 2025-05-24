@@ -1,4 +1,4 @@
-﻿namespace CDTSharp
+namespace CDTSharp
 {
     using System;
     using System.Runtime.CompilerServices;
@@ -83,11 +83,11 @@
             for (int i = 0; i < _t.Count; i++)
             {
                 CDTTriangle t = _t[i];
-                if (t.ContainsSuper())
+                t.parents.Clear();
+                if (t.super)
                     continue;
 
                 var (x, y) = Center(t);
-                t.parents.Clear();
 
                 foreach (var item in polys)
                 {
@@ -278,7 +278,7 @@
 
         public bool IsBadTriangle(CDTTriangle tri, double minAllowedDeg, double maxAllowedArea)
         {
-            if (tri.parents.Count == 0 || tri.ContainsSuper()) return false;
+            if (tri.super || tri.parents.Count == 0) return false;
 
             double minRad = double.MaxValue;
             for (int i = 0; i < 3; i++)
