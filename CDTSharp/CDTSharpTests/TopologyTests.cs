@@ -21,10 +21,10 @@ namespace CDTSharpTests
                0-------1------2
              */
 
-            List<CDTVector> v = [
-                new CDTVector(-50, -50), new CDTVector(0, -50), new CDTVector(50, -50),
-                new CDTVector(-25, 0), new CDTVector(25, 0),
-                new CDTVector(-50, 50), new CDTVector(0, 50), new CDTVector(50, 50)
+            List<Vec2> v = [
+                new Vec2(-50, -50), new Vec2(0, -50), new Vec2(50, -50),
+                new Vec2(-25, 0), new Vec2(25, 0),
+                new Vec2(-50, 50), new Vec2(0, 50), new Vec2(50, 50)
                 ];
 
             List<CDTTriangle> t = [
@@ -51,7 +51,7 @@ namespace CDTSharpTests
 
             for (int i = 0; i < cdt.Triangles.Count; i++)
             {
-                CDTVector center = CDTVector.Zero;
+                Vec2 center = Vec2.Zero;
                 foreach (var item in cdt.Triangles[i].indices)
                 {
                     center += cdt.Vertices[item];
@@ -79,7 +79,7 @@ namespace CDTSharpTests
                     Edge expectedA = cdt.FindEdge(a, b);
                     Edge expectedB = cdt.FindEdge(b, a);
 
-                    CDTVector center = (cdt.Vertices[a] + cdt.Vertices[b]) / 2;
+                    Vec2 center = (cdt.Vertices[a] + cdt.Vertices[b]) / 2;
 
                     (int ti, int ei) = cdt.FindContaining(center);
 
@@ -149,7 +149,7 @@ namespace CDTSharpTests
             List<CDTTriangle> triangles = cdt.Triangles;
 
             int vi = cdt.Vertices.Count;
-            cdt.Vertices.Add(new CDTVector(0, 0));
+            cdt.Vertices.Add(new Vec2(0, 0));
             cdt.SplitEdge(0, triangles[0].IndexOf(4, 3), vi);
 
             AssertHelper.Equal(new CDTTriangle(new Circle(), 3, 6, vi, 4, 1, 9), triangles, 0);
@@ -162,10 +162,10 @@ namespace CDTSharpTests
         public void TriangleSplitCenterSplitWorksCorrectlyWithNoNeighbours()
         {
             CDT cdt = new CDT();
-            cdt.Vertices.AddRange([new CDTVector(-100, -100), new CDTVector(0, 100), new CDTVector(100, -100)]);
+            cdt.Vertices.AddRange([new Vec2(-100, -100), new Vec2(0, 100), new Vec2(100, -100)]);
             cdt.Triangles.AddRange([new CDTTriangle(new Circle(), 0, 1, 2)]);
 
-            cdt.Vertices.Add(new CDTVector(0, 0));
+            cdt.Vertices.Add(new Vec2(0, 0));
             cdt.SplitTriangle(0, cdt.Vertices.Count - 1);
 
             AssertHelper.Equal(new CDTTriangle(new Circle(), 0, 1, 3, NO_INDEX, 1, 2), cdt.Triangles, 0);
@@ -213,10 +213,10 @@ namespace CDTSharpTests
         [Fact]
         public void QuadIsConvex_ReturnsTrueWhenTrulyConvex_CW()
         {
-            CDTVector v0 = new CDTVector(-1, 0);
-            CDTVector v1 = new CDTVector(0, +1);
-            CDTVector v2 = new CDTVector(+1, 0);
-            CDTVector v3 = new CDTVector(0, -1);
+            Vec2 v0 = new Vec2(-1, 0);
+            Vec2 v1 = new Vec2(0, +1);
+            Vec2 v2 = new Vec2(+1, 0);
+            Vec2 v3 = new Vec2(0, -1);
 
             Assert.True(ConvexQuad(v0, v1, v2, v3));
         }
@@ -224,10 +224,10 @@ namespace CDTSharpTests
         [Fact]
         public void QuadIsConvex_ReturnsTrueWhenTrulyConvex_CCW()
         {
-            CDTVector v0 = new CDTVector(-1, 0);
-            CDTVector v1 = new CDTVector(0, +1);
-            CDTVector v2 = new CDTVector(+1, 0);
-            CDTVector v3 = new CDTVector(0, -1);
+            Vec2 v0 = new Vec2(-1, 0);
+            Vec2 v1 = new Vec2(0, +1);
+            Vec2 v2 = new Vec2(+1, 0);
+            Vec2 v3 = new Vec2(0, -1);
 
             Assert.True(ConvexQuad(v3, v2, v1, v0));
         }
@@ -235,10 +235,10 @@ namespace CDTSharpTests
         [Fact]
         public void QuadIsConvex_ReturnsFalseWhenToConvex()
         {
-            CDTVector v0 = new CDTVector(-1, 0);
-            CDTVector v1 = new CDTVector(0, +1);
-            CDTVector v2 = new CDTVector(-0.75, 0);
-            CDTVector v3 = new CDTVector(0, -1);
+            Vec2 v0 = new Vec2(-1, 0);
+            Vec2 v1 = new Vec2(0, +1);
+            Vec2 v2 = new Vec2(-0.75, 0);
+            Vec2 v3 = new Vec2(0, -1);
 
             Assert.False(ConvexQuad(v0, v1, v2, v3));
         }
@@ -246,10 +246,10 @@ namespace CDTSharpTests
         [Fact]
         public void Intersect_FindsIntersectionWhenActuallyIntersect()
         {
-            CDTVector p1 = new CDTVector(-50, -50), p2 = new CDTVector(+50, +50);
-            CDTVector q1 = new CDTVector(-50, +50), q2 = new CDTVector(+50, -50);
+            Vec2 p1 = new Vec2(-50, -50), p2 = new Vec2(+50, +50);
+            Vec2 q1 = new Vec2(-50, +50), q2 = new Vec2(+50, -50);
 
-            Assert.True(Intersect(p1, p2, q1, q2, out CDTVector inter));
+            Assert.True(Intersect(p1, p2, q1, q2, out Vec2 inter));
             Assert.Equal(0, inter.x);
             Assert.Equal(0, inter.y);
         }
@@ -257,10 +257,10 @@ namespace CDTSharpTests
         [Fact]
         public void Intersect_NoIntersectionIfParallel()
         {
-            CDTVector p1 = new CDTVector(0, -50), p2 = new CDTVector(0, +50);
-            CDTVector q1 = new CDTVector(20, +50), q2 = new CDTVector(20, -50);
+            Vec2 p1 = new Vec2(0, -50), p2 = new Vec2(0, +50);
+            Vec2 q1 = new Vec2(20, +50), q2 = new Vec2(20, -50);
 
-            Assert.False(Intersect(p1, p2, q1, q2, out CDTVector inter));
+            Assert.False(Intersect(p1, p2, q1, q2, out Vec2 inter));
             Assert.Equal(Double.NaN, inter.x);
             Assert.Equal(Double.NaN, inter.y);
         }
@@ -268,10 +268,10 @@ namespace CDTSharpTests
         [Fact]
         public void Intersect_NoIntersectionWhenOverlap()
         {
-            CDTVector p1 = new CDTVector(0, -50), p2 = new CDTVector(0, +50);
-            CDTVector q1 = new CDTVector(0, -25), q2 = new CDTVector(0, +25);
+            Vec2 p1 = new Vec2(0, -50), p2 = new Vec2(0, +50);
+            Vec2 q1 = new Vec2(0, -25), q2 = new Vec2(0, +25);
 
-            Assert.False(Intersect(p1, p2, q1, q2, out CDTVector inter));
+            Assert.False(Intersect(p1, p2, q1, q2, out Vec2 inter));
             Assert.Equal(Double.NaN, inter.x);
             Assert.Equal(Double.NaN, inter.y);
         }
@@ -279,10 +279,10 @@ namespace CDTSharpTests
         [Fact]
         public void Intersect_NoIntersectionWhenHitsNode()
         {
-            CDTVector p1 = new CDTVector(0, -50), p2 = new CDTVector(0, +50);
-            CDTVector q1 = p1, q2 = new CDTVector(0, -70);
+            Vec2 p1 = new Vec2(0, -50), p2 = new Vec2(0, +50);
+            Vec2 q1 = p1, q2 = new Vec2(0, -70);
 
-            Assert.False(Intersect(p1, p2, q1, q2, out CDTVector inter));
+            Assert.False(Intersect(p1, p2, q1, q2, out Vec2 inter));
             Assert.Equal(Double.NaN, inter.x);
             Assert.Equal(Double.NaN, inter.y);
         }
@@ -290,10 +290,10 @@ namespace CDTSharpTests
         [Fact]
         public void Intersect_HasIntersectionWhenNodeLiesOnSegment()
         {
-            CDTVector p1 = new CDTVector(0, -50), p2 = new CDTVector(0, +50);
-            CDTVector q1 = new CDTVector(0, 0), q2 = new CDTVector(50, 0);
+            Vec2 p1 = new Vec2(0, -50), p2 = new Vec2(0, +50);
+            Vec2 q1 = new Vec2(0, 0), q2 = new Vec2(50, 0);
 
-            Assert.True(Intersect(p1, p2, q1, q2, out CDTVector inter));
+            Assert.True(Intersect(p1, p2, q1, q2, out Vec2 inter));
             Assert.Equal(q1.x, inter.x);
             Assert.Equal(q1.y, inter.y);
         }
@@ -301,22 +301,22 @@ namespace CDTSharpTests
         [Fact]
         public void OnSegment_InTheCenter()
         {
-            CDTVector start = new CDTVector(0, 0), end = new CDTVector(0, 50);
-            CDTVector center = (start + end) / 2;
+            Vec2 start = new Vec2(0, 0), end = new Vec2(0, 50);
+            Vec2 center = (start + end) / 2;
             Assert.True(OnSegment(start, end, center, 0));
         }
 
         [Fact]
         public void OnSegment_OnStart()
         {
-            CDTVector start = new CDTVector(0, 0), end = new CDTVector(0, 50);
+            Vec2 start = new Vec2(0, 0), end = new Vec2(0, 50);
             Assert.True(OnSegment(start, end, start, 0));
         }
 
         [Fact]
         public void OnSegment_OnEnd()
         {
-            CDTVector start = new CDTVector(0, 0), end = new CDTVector(0, 50);
+            Vec2 start = new Vec2(0, 0), end = new Vec2(0, 50);
             Assert.True(OnSegment(start, end, end, 0));
         }
     }

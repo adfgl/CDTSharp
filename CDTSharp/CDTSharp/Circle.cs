@@ -11,7 +11,7 @@
             this.radiusSquared = radiusSquared;
         }
 
-        public Circle(CDTVector v1, CDTVector v2, CDTVector v3)
+        public Circle(Vec2 v1, Vec2 v2, Vec2 v3)
         {
             // general: x^2 + 2 * x * a + 2 * b * y + y^2 + c = 0
             // where: a -> negative Cx term
@@ -41,7 +41,7 @@
                 return;
             }
 
-            CDTVector v = inv * new CDTVector(
+            Vec2 v = inv * new Vec2(
                 -(x1 * x1 + y1 * y1),
                 -(x2 * x2 + y2 * y2),
                 -(x3 * x3 + y3 * y3));
@@ -53,7 +53,7 @@
             radiusSquared = dx * dx + dy * dy;
         }
 
-        public Circle(CDTVector v1, CDTVector v2)
+        public Circle(Vec2 v1, Vec2 v2)
         {
             x = (v1.x + v2.x) * 0.5;
             y = (v1.y + v2.y) * 0.5;

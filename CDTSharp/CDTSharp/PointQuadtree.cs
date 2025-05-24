@@ -6,10 +6,10 @@ using System.Threading.Tasks;
 
 namespace CDTSharp
 {
-    public class PointQuadtree<T>
+    public class PointQuadtree
     {
         readonly Node root;
-        readonly List<PointItem> _globalItems = new List<PointItem>();
+        readonly List<Point> _globalItems = new List<Point>();
         int _nextIndex = 0;
 
         public PointQuadtree(Rect bounds, int maxDepth = 10, int maxItems = 8)
@@ -17,19 +17,15 @@ namespace CDTSharp
             root = new Node(bounds, 0, maxDepth, maxItems, _globalItems);
         }
 
-        public List<PointItem> Items => _globalItems;
+        public List<Point> Points => _globalItems;
 
-        public class PointItem
+        public class Point
         {
-            public double X { get; }
-            public double Y { get; }
-            public T Value { get; }
+            public Vec2 Value { get; }
             public int Index { get; }
 
-            public PointItem(double x, double y, T value, int index)
+            public Point(Vec2 value, int index)
             {
-                X = x;
-                Y = y;
                 Value = value;
                 Index = index;
             }
@@ -38,26 +34,27 @@ namespace CDTSharp
         private class Node
         {
             public Rect Bounds;
-            public List<PointItem> Items;
+            public List<Point> Items;
             public Node[]? Children;
             public int Depth;
-            readonly int MaxDepth;
-            readonly int MaxItems;
-            readonly List<PointItem> Global;
+            private readonly int MaxDepth;
+            private readonly int MaxItems;
+            private readonly List<Point> Global;
 
-            public Node(Rect bounds, int depth, int maxDepth, int maxItems, List<PointItem> globalList)
+            public Node(Rect bounds, int depth, int maxDepth, int maxItems, List<Point> globalList)
             {
                 Bounds = bounds;
                 Depth = depth;
                 MaxDepth = maxDepth;
                 MaxItems = maxItems;
                 Global = globalList;
-                Items = new List<PointItem>();
+                Items = new List<Point>();
             }
 
-            public void Insert(PointItem item)
+            public void Insert(Point item)
             {
-                if (!Bounds.Contains(item.X, item.Y)) return;
+                Vec2 v = item.Value;
+                if (!Bounds.Contains(v.x, v.y)) return;
 
                 if (Children == null)
                 {
@@ -68,13 +65,13 @@ namespace CDTSharp
                     {
                         Subdivide();
                         foreach (var i in Items)
-                            GetChild(i.X, i.Y).Items.Add(i);
+                            GetChild(i.Value.x, i.Value.y).Items.Add(i);
                         Items.Clear();
                     }
                 }
                 else
                 {
-                    GetChild(item.X, item.Y).Insert(item);
+                    GetChild(v.x, v.y).Insert(item);
                 }
             }
 
@@ -89,7 +86,7 @@ namespace CDTSharp
                 Children[3] = new Node(new Rect(cx, cy, Bounds.maxX, Bounds.maxY), Depth + 1, MaxDepth, MaxItems, Global); // top-right
             }
 
-            Node GetChild(double x, double y)
+            private Node GetChild(double x, double y)
             {
                 double cx = (Bounds.minX + Bounds.maxX) * 0.5;
                 double cy = (Bounds.minY + Bounds.maxY) * 0.5;
@@ -99,29 +96,38 @@ namespace CDTSharp
                     return x < cx ? Children[2] : Children[3];
             }
 
-            public void Query(double x, double y, List<T> results)
+            public void Query(double x, double y, List<Point> results, double eps = 1e-10)
             {
                 if (!Bounds.Contains(x, y)) return;
 
-                foreach (PointItem item in Items)
-                    if (Math.Abs(item.X - x) < 1e-10 && Math.Abs(item.Y - y) < 1e-10)
-                        results.Add(item.Value);
+                foreach (var item in Items)
+                    if (Math.Abs(item.Value.x - x) < eps && Math.Abs(item.Value.y - y) < eps)
+                        results.Add(item);
 
                 if (Children != null)
-                    GetChild(x, y).Query(x, y, results);
+                    GetChild(x, y).Query(x, y, results, eps);
             }
 
-            public void Query(Rect area, List<T> results)
+            public void Query(Rect area, List<Vec2> results)
             {
                 if (!Bounds.Intersects(area)) return;
 
                 foreach (var item in Items)
-                    if (area.Contains(item.X, item.Y))
+                {
+                    if (area.Contains(item.Value.x, item.Value.y))
+                    {
                         results.Add(item.Value);
+                    }
+                       
+                }
 
                 if (Children != null)
+                {
                     foreach (var child in Children)
+                    {
                         child.Query(area, results);
+                    }
+                }
             }
 
             public void CollectDebugInfo(ref int nodeCount, ref int itemCount, ref int maxDepth, Dictionary<int, int> histogram)
@@ -144,37 +150,37 @@ namespace CDTSharp
             }
         }
 
-        public int AddIfUnique(double x, double y, T item, double precision = 1e-10)
+        public int IndexOf(Vec2 point, double precision = 1e-10)
         {
-            foreach (var existing in _globalItems)
+            List<Point> found = Query(point.x, point.y, precision);
+            if (found.Count > 0)
             {
-                if (Math.Abs(existing.X - x) <= precision && Math.Abs(existing.Y - y) <= precision)
-                {
-                    return existing.Index;
-                }
+                return found[0].Index;
             }
-
-            var point = new PointItem(x, y, item, _nextIndex++);
-            root.Insert(point);
-            return point.Index;
+            return -1;
         }
 
-        public void Insert(double x, double y, T item)
+        public bool Contains(Vec2 point, double precision = 1e-10)
         {
-            var point = new PointItem(x, y, item, _nextIndex++);
-            root.Insert(point);
+            return Query(point.x, point.y, precision).Count > 0;
         }
 
-        public List<T> Query(double x, double y)
+        public void Insert(Vec2 point)
         {
-            var results = new List<T>();
-            root.Query(x, y, results);
+            var item = new Point(point, _nextIndex++);
+            root.Insert(item);
+        }
+
+        public List<Point> Query(double x, double y, double eps)
+        {
+            List<Point> results = new List<Point>();
+            root.Query(x, y, results, eps);
             return results;
         }
 
-        public List<T> Query(Rect area)
+        public List<Vec2> Query(Rect area)
         {
-            var results = new List<T>();
+            var results = new List<Vec2>();
             root.Query(area, results);
             return results;
         }
@@ -197,6 +203,7 @@ namespace CDTSharp
             };
         }
     }
+
 
     public struct QuadtreeDebugInfo
     {

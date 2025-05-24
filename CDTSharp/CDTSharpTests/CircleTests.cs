@@ -12,9 +12,9 @@ namespace CDTSharpTests
         [Fact]
         public void CircleBuildsCorrectly_FromThreeSparslyPositionedPoints()
         {
-            CDTVector a = new CDTVector(79.144, 143.238);
-            CDTVector b = new CDTVector(170.708, 197.264);
-            CDTVector c = new CDTVector(199.125, 103.244);
+            Vec2 a = new Vec2(79.144, 143.238);
+            Vec2 b = new Vec2(170.708, 197.264);
+            Vec2 c = new Vec2(199.125, 103.244);
 
             Circle circle = new Circle(a, b, c);
 
@@ -27,8 +27,8 @@ namespace CDTSharpTests
         [Fact]
         public void CircleBuildsCorrectly_FromTwoUniquePoints()
         {
-            CDTVector a = new CDTVector(79.144, 143.238);
-            CDTVector b = new CDTVector(199.125, 103.244);
+            Vec2 a = new Vec2(79.144, 143.238);
+            Vec2 b = new Vec2(199.125, 103.244);
 
             Circle circle = new Circle(a, b);
 
@@ -41,8 +41,8 @@ namespace CDTSharpTests
         [Fact]
         public void CircleContains_PointStrictlyInside()
         {
-            CDTVector a = new CDTVector(-50, 0);
-            CDTVector b = new CDTVector(+50, 0);
+            Vec2 a = new Vec2(-50, 0);
+            Vec2 b = new Vec2(+50, 0);
 
             Circle circle = new Circle(a, b);
 
@@ -52,8 +52,8 @@ namespace CDTSharpTests
         [Fact]
         public void CircleContains_PointStrictlyOutside()
         {
-            CDTVector a = new CDTVector(-50, 0);
-            CDTVector b = new CDTVector(+50, 0);
+            Vec2 a = new Vec2(-50, 0);
+            Vec2 b = new Vec2(+50, 0);
 
             Circle circle = new Circle(a, b);
 
@@ -63,8 +63,8 @@ namespace CDTSharpTests
         [Fact]
         public void CircleContains_PointOnCircumference()
         {
-            CDTVector a = new CDTVector(-50, 0);
-            CDTVector b = new CDTVector(+50, 0);
+            Vec2 a = new Vec2(-50, 0);
+            Vec2 b = new Vec2(+50, 0);
 
             Circle circle = new Circle(a, b);
 

@@ -31,10 +31,10 @@ namespace CDTSharpConsole
             Stopwatch sw = new Stopwatch();
             sw.Start();
             var cdt = new CDT();
+            cdt.Triangulate(input);
 
             try
             {
-                cdt.Triangulate(input);
             }
             catch (Exception e)
             {
@@ -64,9 +64,9 @@ namespace CDTSharpConsole
 
                 for (int i = 0; i < 3; i++)
                 {
-                    CDTVector a = cdt.Vertices[(i + 2) % 4];
-                    CDTVector b = cdt.Vertices[i];
-                    CDTVector c = cdt.Vertices[(i + 1) % 4];
+                    Vec2 a = cdt.Vertices[(i + 2) % 4];
+                    Vec2 b = cdt.Vertices[i];
+                    Vec2 c = cdt.Vertices[(i + 1) % 4];
 
                     double ang = CDT.Angle(a, b, c) * 180 / Math.PI;
                     if (minAng > ang) minAng = ang;

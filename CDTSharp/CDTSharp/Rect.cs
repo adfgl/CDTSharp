@@ -20,7 +20,7 @@ namespace CDTSharp
             this.dy = maxY - minY;
         }
 
-        public static Rect FromPoints(IEnumerable<CDTVector> points)
+        public static Rect FromPoints(IEnumerable<Vec2> points)
         {
             double minX, minY, maxX, maxY;
             minX = minY = double.MaxValue;
@@ -44,10 +44,10 @@ namespace CDTSharp
             );
         }
 
-        public void Deconstruct(out CDTVector min, out CDTVector max)
+        public void Deconstruct(out Vec2 min, out Vec2 max)
         {
-            min = new CDTVector(minX, minY);
-            max = new CDTVector(maxX, maxY);
+            min = new Vec2(minX, minY);
+            max = new Vec2(maxX, maxY);
         }
 
         public Rect Move(double dx, double dy)
@@ -55,7 +55,7 @@ namespace CDTSharp
             return new Rect(minX + dx, minY + dy, maxX + dx, maxY + dy);
         }
 
-        public CDTVector Center() => new CDTVector((minX + maxX) / 2, (minY + maxY) / 2);
+        public Vec2 Center() => new Vec2((minX + maxX) / 2, (minY + maxY) / 2);
 
         public bool Contains(double x, double y) =>
             x >= minX && x <= maxX && y >= minY && y <= maxY;

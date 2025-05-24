@@ -8,7 +8,7 @@
         public const double EPS = 1e-12;
         public const int NO_INDEX = -1;
 
-        readonly List<CDTVector> _v = new List<CDTVector>();
+        readonly List<Vec2> _v = new List<Vec2>();
         readonly List<CDTTriangle> _t = new List<CDTTriangle>();
         readonly HashSet<int> _affected = new HashSet<int>();
         readonly Stack<Edge> _toLegalize = new Stack<Edge>();
@@ -23,23 +23,42 @@
             _constrainedEdges.Clear();
 
             CDTPreprocessor processed = new CDTPreprocessor(input);
-            _constrainedEdges.AddRange(processed.Constraints);
-
-            List<CDTVector> vertices = processed.Quad.Items.Select(o => o.Value).ToList();
-
             AddSuperTriangle(processed.Rect);
-            foreach (CDTVector v in vertices)
+
+            PointQuadtree quad = new PointQuadtree(processed.Rect);
+            foreach ((Polygon poly, Polygon[] holes) in processed.Polygons)
             {
-                (int triangleIndex, int edgeIndex) = FindContaining(v, EPS);
-                Insert(v, triangleIndex, edgeIndex);
+                foreach (Vec2 item in poly.verts)
+                {
+                    Insert(quad, item);
+                }
+
+                foreach (Polygon hole in holes)
+                {
+                    foreach (Vec2 item in hole.verts)
+                    {
+                        Insert(quad, item);
+                    }
+                }
             }
 
-            foreach ((int a, int b) in processed.Constraints)
+            foreach (Vec2 item in processed.PointConstraints)
             {
-                AddConstraint(a + 3, b + 3);
+                Insert(quad, item);
             }
 
-            MarkHoles(processed.Polygons, vertices);
+            foreach ((Vec2 a, Vec2 b) in processed.Constraints)
+            {
+                int ai = quad.IndexOf(a);
+                if (ai == NO_INDEX) ai = Insert(quad, a);
+
+                int bi = quad.IndexOf(b);
+                if (bi == NO_INDEX) bi = Insert(quad, a);
+
+                AddConstraint(ai + 3, bi + 3);
+            }
+
+            MarkHoles(processed.Polygons);
 
             if (input.Refine)
             {
@@ -49,11 +68,11 @@
             return this;
         }
 
-        public List<CDTVector> Vertices => _v;
+        public List<Vec2> Vertices => _v;
         public List<CDTTriangle> Triangles => _t;
         public List<(int, int)> Constraints => _constrainedEdges;
 
-        void MarkHoles(List<(Polygon, Polygon[])> polys, List<CDTVector> vertices)
+        void MarkHoles(List<(Polygon, Polygon[])> polys)
         {
             for (int i = 0; i < _t.Count; i++)
             {
@@ -69,12 +88,12 @@
                     Polygon contour = item.Item1;
                     Polygon[] holes = item.Item2;
 
-                    if (contour.Contains(vertices, (o => o.x), (o => o.y), x, y))
+                    if (contour.Contains(x, y))
                     {
                         bool insideHole = false;
                         foreach (var hole in holes)
                         {
-                            if (hole.Contains(vertices, (o => o.x), (o => o.y), x, y))
+                            if (hole.Contains(x, y))
                             {
                                 insideHole = true;
                                 break;
@@ -93,14 +112,14 @@
         }
 
 
-        CDTVector Center(CDTTriangle t)
+        Vec2 Center(CDTTriangle t)
         {
             return (_v[t.indices[0]] + _v[t.indices[1]] + _v[t.indices[2]]) / 3;
         }
 
-        bool IsVisibleFromInterior(HashSet<Segment> segments, Segment seg, CDTVector point)
+        bool IsVisibleFromInterior(HashSet<Segment> segments, Segment seg, Vec2 point)
         {
-            CDTVector mid = CDTVector.MidPoint(_v[seg.a], _v[seg.b]);
+            Vec2 mid = Vec2.MidPoint(_v[seg.a], _v[seg.b]);
             foreach (Segment s in segments)
             {
                 if (s.Equals(seg))
@@ -123,7 +142,7 @@
             {
                 if (a == i || b == i) continue;
 
-                CDTVector v = _v[i];
+                Vec2 v = _v[i];
                 if (diam.Contains(v.x, v.y))
                 {
                     return true;
@@ -169,15 +188,15 @@
                     Segment seg = segmentQueue.Dequeue();
                     var (ia, ib) = seg;
 
-                    CDTVector a = _v[ia];
-                    CDTVector b = _v[ib];
-                    double sqrLen = CDTVector.SquareLength(a - b);
+                    Vec2 a = _v[ia];
+                    Vec2 b = _v[ib];
+                    double sqrLen = Vec2.SquareLength(a - b);
                     if (sqrLen < minSqrLen)
                         continue;
 
                     Circle diam = new Circle(a, b);
 
-                    CDTVector mid = new CDTVector(diam.x, diam.y);
+                    Vec2 mid = new Vec2(diam.x, diam.y);
 
                     var (triIndex, edgeIndex) = FindContaining(mid, EPS);
                     if (edgeIndex == NO_INDEX)
@@ -219,7 +238,7 @@
                     CDTTriangle tri = _t[triIndex];
                     if (!IsBadTriangle(tri, minAngle, maxArea)) continue;
 
-                    CDTVector cc = new CDTVector(tri.circle.x, tri.circle.y);
+                    Vec2 cc = new Vec2(tri.circle.x, tri.circle.y);
 
                     bool encroaches = false;
                     foreach (Segment seg in uniqueSegments)
@@ -277,7 +296,19 @@
             return area > maxAllowedArea;
         }
 
-        int Insert(CDTVector vertex, int triangle, int edge)
+        int Insert(PointQuadtree quad, Vec2 v)
+        {
+            if (quad.Contains(v, EPS))
+            {
+                return NO_INDEX;
+            }
+
+            quad.Insert(v);
+            (int triangleIndex, int edgeIndex) = FindContaining(v, EPS);
+            return Insert(v, triangleIndex, edgeIndex);
+        }
+
+        int Insert(Vec2 vertex, int triangle, int edge)
         {
             int vertexindex = _v.Count;
             _v.Add(vertex);
@@ -301,9 +332,9 @@
             double midy = (rect.maxY + rect.minY) * 0.5;
             double scale = 10;
 
-            CDTVector a = new CDTVector(midx - scale * dmax, midy - scale * dmax);
-            CDTVector b = new CDTVector(midx, midy + scale * dmax);
-            CDTVector c = new CDTVector(midx + scale * dmax, midy - scale * dmax);
+            Vec2 a = new Vec2(midx - scale * dmax, midy - scale * dmax);
+            Vec2 b = new Vec2(midx, midy + scale * dmax);
+            Vec2 c = new Vec2(midx + scale * dmax, midy - scale * dmax);
 
             _v.Add(a);
             _v.Add(b);
@@ -374,7 +405,7 @@
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool Intersect(CDTVector p1, CDTVector p2, CDTVector q1, CDTVector q2, out CDTVector intersection)
+        public static bool Intersect(Vec2 p1, Vec2 p2, Vec2 q1, Vec2 q2, out Vec2 intersection)
         {
             // P(u) = p1 + u * (p2 - p1)
             // Q(v) = q1 + v * (q2 - q1)
@@ -391,7 +422,7 @@
             // | a  b | * | u | = | e |
             // | c  d |   | v |   | f |
 
-            intersection = CDTVector.NaN;
+            intersection = Vec2.NaN;
 
             double a = p2.x - p1.x, b = q1.x - q2.x;
             double c = p2.y - p1.y, d = q1.y - q2.y;
@@ -410,12 +441,12 @@
             {
                 return false;
             }
-            intersection = new CDTVector(p1.x + u * a, p1.y + u * c);
+            intersection = new Vec2(p1.x + u * a, p1.y + u * c);
             return true;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool OnSegment(CDTVector a, CDTVector b, CDTVector p, double epsilon)
+        public static bool OnSegment(Vec2 a, Vec2 b, Vec2 p, double epsilon)
         {
             double dxAB = b.x - a.x;
             double dyAB = b.y - a.y;
@@ -441,15 +472,15 @@
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool ConvexQuad(CDTVector a, CDTVector b, CDTVector c, CDTVector d)
+        public static bool ConvexQuad(Vec2 a, Vec2 b, Vec2 c, Vec2 d)
         {
             return SameSide(a, b, c, d) && SameSide(d, c, b, a);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        static bool SameSide(CDTVector a, CDTVector b, CDTVector c, CDTVector d)
+        static bool SameSide(Vec2 a, Vec2 b, Vec2 c, Vec2 d)
         {
-            return CDTVector.Cross(a, b, c) * CDTVector.Cross(c, d, a) >= 0;
+            return Vec2.Cross(a, b, c) * Vec2.Cross(c, d, a) >= 0;
         }
 
         public void SplitEdge(int triangleIndex, int edgeIndex, int vertexIndex)
@@ -498,11 +529,11 @@
 
             int i3 = tri1.indices[e30];
 
-            CDTVector v0 = _v[i0];
-            CDTVector v1 = _v[i1];
-            CDTVector v2 = _v[i2];
-            CDTVector v3 = _v[i3];
-            CDTVector v = _v[vertexIndex];
+            Vec2 v0 = _v[i0];
+            Vec2 v1 = _v[i1];
+            Vec2 v2 = _v[i2];
+            Vec2 v3 = _v[i3];
+            Vec2 v = _v[vertexIndex];
 
             bool constrained = tri0.constraint[e20];
 
@@ -558,7 +589,7 @@
             int i2 = t.indices[2];
             int i3 = vertexIndex;
 
-            CDTVector v = _v[i3];
+            Vec2 v = _v[i3];
             _t[t0] = new CDTTriangle(
                 new Circle(_v[i0], _v[i1], v),
                i0, i1, i3,
@@ -697,7 +728,7 @@
             int e02 = t1.IndexOf(i0, i2);
 
             int i3 = t1.indices[CDTTriangle.PREV[e02]];
-            CDTVector v3 = _v[i3];
+            Vec2 v3 = _v[i3];
             return
                 t0.circle.Contains(v3.x, v3.y) &&
                 ConvexQuad(_v[i0], _v[i1], _v[i2], v3);
@@ -705,7 +736,7 @@
 
         public int EntranceTriangle(int triangleIndexContainingA, int aIndex, int bIndex)
         {
-            CDTVector vb = _v[bIndex];
+            Vec2 vb = _v[bIndex];
             TriangleWalker walker = new TriangleWalker(_t, triangleIndexContainingA, aIndex);
             do
             {
@@ -717,7 +748,7 @@
                     int b = tri.indices[CDTTriangle.NEXT[i]];
                     if (a == aIndex || b == aIndex)
                     {
-                        if (CDTVector.Cross(_v[a], _v[b], vb) <= 0)
+                        if (Vec2.Cross(_v[a], _v[b], vb) <= 0)
                         {
                             toRightCount++;
                         }
@@ -734,9 +765,9 @@
             throw new Exception("Could not find entrance triangle.");
         }
 
-        public (int triangleIndex, int edgeIndex) FindContaining(CDTVector point, double tolerance = 1e-6)
+        public (int triangleIndex, int edgeIndex) FindContaining(Vec2 point, double tolerance = 1e-6)
         {
-            List<CDTVector> vertices = _v;
+            List<Vec2> vertices = _v;
             List<CDTTriangle> triangles = _t; 
 
             int max = triangles.Count * 3;
@@ -756,10 +787,10 @@
                 CDTTriangle tri = triangles[current];
                 for (int i = 0; i < 3; i++)
                 {
-                    CDTVector a = vertices[tri.indices[i]];
-                    CDTVector b = vertices[tri.indices[CDTTriangle.NEXT[i]]];
+                    Vec2 a = vertices[tri.indices[i]];
+                    Vec2 b = vertices[tri.indices[CDTTriangle.NEXT[i]]];
 
-                    double cross = CDTVector.Cross(a, b, point);
+                    double cross = Vec2.Cross(a, b, point);
                     if (cross > tolerance)
                     {
                         current = tri.adjacent[i];
@@ -897,8 +928,8 @@
             }
 
 
-            CDTVector p1 = _v[aIndex];
-            CDTVector p2 = _v[bIndex];
+            Vec2 p1 = _v[aIndex];
+            Vec2 p2 = _v[bIndex];
 
             int current = EntranceTriangle(triangle, aIndex, bIndex);
             while (true)
@@ -924,9 +955,9 @@
                 bool advanced = false;
                 for (int i = 0; i < 3; i++)
                 {
-                    CDTVector q1 = _v[currentTri.indices[i]];
-                    CDTVector q2 = _v[currentTri.indices[CDTTriangle.NEXT[i]]];
-                    if (CDTVector.Cross(q1, q2, p2) > 0)
+                    Vec2 q1 = _v[currentTri.indices[i]];
+                    Vec2 q2 = _v[currentTri.indices[CDTTriangle.NEXT[i]]];
+                    if (Vec2.Cross(q1, q2, p2) > 0)
                     {
                         current = currentTri.adjacent[i];
                         advanced = true;
@@ -942,39 +973,39 @@
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static double Angle(CDTVector a, CDTVector b, CDTVector c)
+        public static double Angle(Vec2 a, Vec2 b, Vec2 c)
         {
-            CDTVector ab = (a - b).Normalize();
-            CDTVector cb = (c - b).Normalize();
-            double dot = CDTVector.Dot(ab, cb);
+            Vec2 ab = (a - b).Normalize();
+            Vec2 cb = (c - b).Normalize();
+            double dot = Vec2.Dot(ab, cb);
             return Math.Acos(Math.Clamp(dot, -1.0, 1.0)); 
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool Clockwise(CDTVector a, CDTVector b, CDTVector c)
+        public static bool Clockwise(Vec2 a, Vec2 b, Vec2 c)
         {
-            return CDTVector.Cross(a, b, c) < 0;
+            return Vec2.Cross(a, b, c) < 0;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static double Area(CDTVector a, CDTVector b, CDTVector c)
+        public static double Area(Vec2 a, Vec2 b, Vec2 c)
         {
-            return Math.Abs(CDTVector.Cross(a, b, c)) * 0.5;
+            return Math.Abs(Vec2.Cross(a, b, c)) * 0.5;
         }
 
         public double Area(CDTTriangle t)
         {
-            CDTVector a = _v[t.indices[0]];
-            CDTVector b = _v[t.indices[1]];
-            CDTVector c = _v[t.indices[2]];
+            Vec2 a = _v[t.indices[0]];
+            Vec2 b = _v[t.indices[1]];
+            Vec2 c = _v[t.indices[2]];
             return Area(a, b, c);
         }
 
         public bool Clockwise(CDTTriangle t)
         {
-            CDTVector a = _v[t.indices[0]];
-            CDTVector b = _v[t.indices[1]];
-            CDTVector c = _v[t.indices[2]];
+            Vec2 a = _v[t.indices[0]];
+            Vec2 b = _v[t.indices[1]];
+            Vec2 c = _v[t.indices[2]];
             return Clockwise(a, b, c);
         }
     }
