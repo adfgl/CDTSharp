@@ -23,9 +23,11 @@
             _constrainedEdges.Clear();
 
             CDTPreprocessor processed = new CDTPreprocessor(input);
-            AddSuperTriangle(processed.Rect);
+            Rect rect = processed.Rect;
+            AddSuperTriangle(rect);
 
-            PointQuadtree quad = new PointQuadtree(processed.Rect.Expand(10));
+            double expansionMargin = Math.Max(5, Math.Max(rect.dx, rect.dy) * 0.01);
+            PointQuadtree quad = new PointQuadtree(rect.Expand(expansionMargin));
             foreach ((Polygon poly, Polygon[] holes) in processed.Polygons)
             {
                 foreach (Vec2 item in poly.verts)
