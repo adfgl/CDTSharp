@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -21,13 +21,14 @@ namespace CDTSharp
 
         public class Point
         {
-            public Vec2 Value { get; }
+            public double X { get; }
+            public double Y { get; }
             public int Index { get; }
 
-            public Point(Vec2 value, int index)
+            public Point(int index, double x, double y)
             {
-                Value = value;
                 Index = index;
+                X = x; Y = y;
             }
         }
 
@@ -53,8 +54,8 @@ namespace CDTSharp
 
             public void Insert(Point item)
             {
-                Vec2 v = item.Value;
-                if (!Bounds.Contains(v.x, v.y)) return;
+                double x = item.X, y = item.Y;
+                if (!Bounds.Contains(x, y)) return;
 
                 if (Children == null)
                 {
@@ -65,13 +66,13 @@ namespace CDTSharp
                     {
                         Subdivide();
                         foreach (var i in Items)
-                            GetChild(i.Value.x, i.Value.y).Items.Add(i);
+                            GetChild(i.X, i.Y).Items.Add(i);
                         Items.Clear();
                     }
                 }
                 else
                 {
-                    GetChild(v.x, v.y).Insert(item);
+                    GetChild(x, y).Insert(item);
                 }
             }
 
@@ -118,12 +119,11 @@ namespace CDTSharp
                 steps++;
 
                 if (!Bounds.Intersects(area)) return;
-
+                var (cx, cy) = area.Center()
                 foreach (var item in Items)
                 {
-                    var v = item.Value;
-                    double dx = v.x - area.Center().x;
-                    double dy = v.y - area.Center().y;
+                    double dx = item.X - cx;
+                    double dy = item.Y - cy;
                     if (Math.Abs(dx) <= eps && Math.Abs(dy) <= eps)
                     {
                         results.Add(item);
@@ -159,9 +159,9 @@ namespace CDTSharp
             }
         }
 
-        public int IndexOf(Vec2 point, double precision = 1e-10)
+        public int IndexOf(double x, double y, double precision = 1e-10)
         {
-            List<Point> found = Query(point.x, point.y, precision);
+            List<Point> found = Query(x, y, precision);
             if (found.Count > 0)
             {
                 return found[0].Index;
@@ -169,14 +169,14 @@ namespace CDTSharp
             return -1;
         }
 
-        public bool Contains(Vec2 point, double precision = 1e-10)
+        public bool Contains(double x, double y, double precision = 1e-10)
         {
-            return Query(point.x, point.y, precision).Count > 0;
+            return Query(x, y, precision).Count > 0;
         }
 
-        public void Insert(Vec2 point)
+        public void Insert(double x, double y)
         {
-            var item = new Point(point, _nextIndex++);
+            var item = new Point(_nextIndex++, x, y);
             root.Insert(item);
         }
 
