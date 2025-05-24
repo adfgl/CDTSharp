@@ -29,9 +29,6 @@ namespace CDTSharp
             this.parents = parents != null ? new List<int>(parents) : new List<int>();
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal bool ContainsSuper() => indices[0] < 3 || indices[1] < 3 || indices[2] < 3;
-
         public int IndexOf(int v)
         {
             for (int i = 0; i < 3; i++)
