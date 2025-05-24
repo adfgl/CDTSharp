@@ -9,7 +9,6 @@ namespace CDTSharp
     public class PointQuadtree
     {
         readonly Node root;
-        readonly List<Point> _globalItems = new List<Point>();
         int _nextIndex = 0;
 
         public PointQuadtree(Rect bounds, int maxDepth = 10, int maxItems = 8)
@@ -40,15 +39,13 @@ namespace CDTSharp
             public int Depth;
             private readonly int MaxDepth;
             private readonly int MaxItems;
-            private readonly List<Point> Global;
 
-            public Node(Rect bounds, int depth, int maxDepth, int maxItems, List<Point> globalList)
+            public Node(Rect bounds, int depth, int maxDepth, int maxItems)
             {
                 Bounds = bounds;
                 Depth = depth;
                 MaxDepth = maxDepth;
                 MaxItems = maxItems;
-                Global = globalList;
                 Items = new List<Point>();
             }
 
@@ -60,8 +57,6 @@ namespace CDTSharp
                 if (Children == null)
                 {
                     Items.Add(item);
-                    Global.Add(item);
-
                     if (Items.Count > MaxItems && Depth < MaxDepth)
                     {
                         Subdivide();
