@@ -8,7 +8,8 @@ namespace CDTSharp
     {
         public readonly static int[] NEXT = [1, 2, 0], PREV = [2, 0, 1];
 
-        public readonly Circle circle;
+        public Circle circle;
+        public double cx, cy, area;
         public readonly int[] indices, adjacent;
         public readonly bool[] constraint;
         public readonly List<int> parents;
