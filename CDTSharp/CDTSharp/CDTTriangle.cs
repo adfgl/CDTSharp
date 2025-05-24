@@ -20,11 +20,11 @@ namespace CDTSharp
             int v0, int v1, int v2,
             int adj0 = NO_INDEX, int adj1 = NO_INDEX, int adj2 = NO_INDEX,
             bool con0 = false, bool con1 = false, bool con2 = false,
-            IEnumerable<int> parents = null)
+            IEnumerable<int>? parents = null)
         {
             this.circle = circle;
-             this.super = v0 < 3 || v1 < 3 || v2 < 3;
-             this.indices = [v0, v1, v2];
+            this.super = v0 < 3 || v1 < 3 || v2 < 3;
+            this.indices = [v0, v1, v2];
             this.adjacent = [adj0, adj1, adj2];
             this.constraint = [con0, con1, con2];
             this.parents = parents != null ? new List<int>(parents) : new List<int>();
@@ -71,7 +71,7 @@ namespace CDTSharp
                 s += adjacent[i] + " " + constraint[i] + (i != 2 ? ", " : "");
             }
 
-            return $"{(ContainsSuper() ? "[super] " : "")} {String.Join(' ', indices.Select(i => i))} ({s})";
+            return $"{(super ? "[super] " : "")} {String.Join(' ', indices.Select(i => i))} ({s})";
         }
     }
 }

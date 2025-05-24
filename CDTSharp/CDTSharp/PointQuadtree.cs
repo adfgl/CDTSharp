@@ -13,10 +13,8 @@ namespace CDTSharp
 
         public PointQuadtree(Rect bounds, int maxDepth = 10, int maxItems = 8)
         {
-            root = new Node(bounds, 0, maxDepth, maxItems, _globalItems);
+            root = new Node(bounds, 0, maxDepth, maxItems);
         }
-
-        public List<Point> Points => _globalItems;
 
         public class Point
         {
@@ -76,10 +74,10 @@ namespace CDTSharp
                 double cx = (Bounds.minX + Bounds.maxX) * 0.5;
                 double cy = (Bounds.minY + Bounds.maxY) * 0.5;
                 Children = new Node[4];
-                Children[0] = new Node(new Rect(Bounds.minX, Bounds.minY, cx, cy), Depth + 1, MaxDepth, MaxItems, Global); // bottom-left
-                Children[1] = new Node(new Rect(cx, Bounds.minY, Bounds.maxX, cy), Depth + 1, MaxDepth, MaxItems, Global); // bottom-right
-                Children[2] = new Node(new Rect(Bounds.minX, cy, cx, Bounds.maxY), Depth + 1, MaxDepth, MaxItems, Global); // top-left
-                Children[3] = new Node(new Rect(cx, cy, Bounds.maxX, Bounds.maxY), Depth + 1, MaxDepth, MaxItems, Global); // top-right
+                Children[0] = new Node(new Rect(Bounds.minX, Bounds.minY, cx, cy), Depth + 1, MaxDepth, MaxItems); // bottom-left
+                Children[1] = new Node(new Rect(cx, Bounds.minY, Bounds.maxX, cy), Depth + 1, MaxDepth, MaxItems); // bottom-right
+                Children[2] = new Node(new Rect(Bounds.minX, cy, cx, Bounds.maxY), Depth + 1, MaxDepth, MaxItems); // top-left
+                Children[3] = new Node(new Rect(cx, cy, Bounds.maxX, Bounds.maxY), Depth + 1, MaxDepth, MaxItems); // top-right
             }
 
             private Node GetChild(double x, double y)
@@ -99,7 +97,7 @@ namespace CDTSharp
 
                 foreach (var item in Items)
                 {
-                    if (Math.Abs(item.Value.x - x) < eps && Math.Abs(item.Value.y - y) < eps)
+                    if (Math.Abs(item.X - x) < eps && Math.Abs(item.Y - y) < eps)
                         results.Add(item);
                 }
 
@@ -114,7 +112,7 @@ namespace CDTSharp
                 steps++;
 
                 if (!Bounds.Intersects(area)) return;
-                var (cx, cy) = area.Center()
+                var (cx, cy) = area.Center();
                 foreach (var item in Items)
                 {
                     double dx = item.X - cx;

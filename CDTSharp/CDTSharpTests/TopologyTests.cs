@@ -163,7 +163,7 @@ namespace CDTSharpTests
         {
             CDT cdt = new CDT();
             cdt.Vertices.AddRange([new Vec2(-100, -100), new Vec2(0, 100), new Vec2(100, -100)]);
-            cdt.Triangles.AddRange([new CDTTriangle(new Circle(), 0, 1, 2)]);
+            cdt.Triangles.AddRange([new CDTTriangle(new Circle(), 0, 0, 1, 2)]);
 
             cdt.Vertices.Add(new Vec2(0, 0));
             cdt.SplitTriangle(0, cdt.Vertices.Count - 1);
