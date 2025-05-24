@@ -22,12 +22,13 @@
             _toLegalize.Clear();
             _constrainedEdges.Clear();
 
-            InputPreprocessor processed = new InputPreprocessor(input);
+            CDTPreprocessor processed = new CDTPreprocessor(input);
             _constrainedEdges.AddRange(processed.Constraints);
 
-            AddSuperTriangle(processed.Rect);
+            List<CDTVector> vertices = processed.Quad.Items.Select(o => o.Value).ToList();
 
-            foreach (CDTVector v in processed.Vertices)
+            AddSuperTriangle(processed.Rect);
+            foreach (CDTVector v in vertices)
             {
                 (int triangleIndex, int edgeIndex) = FindContaining(v, EPS);
                 Insert(v, triangleIndex, edgeIndex);
@@ -38,7 +39,7 @@
                 AddConstraint(a + 3, b + 3);
             }
 
-            MarkHoles(processed.Polygons, processed.Vertices);
+            MarkHoles(processed.Polygons, vertices);
 
             if (input.Refine)
             {
@@ -68,12 +69,12 @@
                     Polygon contour = item.Item1;
                     Polygon[] holes = item.Item2;
 
-                    if (contour.Contains(vertices, x, y))
+                    if (contour.Contains(vertices, (o => o.x), (o => o.y), x, y))
                     {
                         bool insideHole = false;
                         foreach (var hole in holes)
                         {
-                            if (hole.Contains(vertices, x, y))
+                            if (hole.Contains(vertices, (o => o.x), (o => o.y), x, y))
                             {
                                 insideHole = true;
                                 break;
@@ -131,7 +132,7 @@
             return false;
         }
 
-        public void Refine(InputPreprocessor polys, double maxArea, double minAngle)
+        public void Refine(CDTPreprocessor polys, double maxArea, double minAngle)
         {
             HashSet<Segment> uniqueSegments = new HashSet<Segment>();
 

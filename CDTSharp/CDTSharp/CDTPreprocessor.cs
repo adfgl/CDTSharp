@@ -11,32 +11,76 @@ namespace CDTSharp
 {
     using static PolygonHelper;
 
-    public class InputPreprocessor
+    public class CDTPreprocessor
     {
         readonly CDTInput _input;
-        readonly List<CDTVector> _vertices;
-        readonly List<(int a, int b)> _constraints;
-        readonly List<(Polygon, Polygon[])> _polygons;
+        readonly PointQuadtree<CDTVector> _quad;
+        readonly List<(int a, int b)> _constraints = new List<(int, int)>();
+        readonly List<(Polygon, Polygon[])> _polygons = new List<(Polygon, Polygon[])>();
         readonly Rect _rect;
 
-        public InputPreprocessor(CDTInput input, double eps = 1e-8)
+        public PointQuadtree<CDTVector> Quad => _quad;
+
+        public static Rect GetBounds(CDTInput input)
+        {
+            double minX = double.MaxValue, minY = double.MaxValue;
+            double maxX = double.MinValue, maxY = double.MinValue;
+
+            void UpdateBounds(CDTVector v)
+            {
+                if (v.x < minX) minX = v.x;
+                if (v.y < minY) minY = v.y;
+                if (v.x > maxX) maxX = v.x;
+                if (v.y > maxY) maxY = v.y;
+            }
+
+            foreach (CDTPolygon poly in input.Polygons)
+            {
+                foreach (var v in poly.Contour)
+                    UpdateBounds(v);
+
+                if (poly.Holes != null)
+                {
+                    foreach (var hole in poly.Holes)
+                        foreach (var v in hole)
+                            UpdateBounds(v);
+                }
+
+                if (poly.Points != null)
+                {
+                    foreach (var v in poly.Points)
+                        UpdateBounds(v);
+                }
+
+                if (poly.Constraints != null)
+                {
+                    foreach ((CDTVector a, CDTVector b) in poly.Constraints)
+                    {
+                        UpdateBounds(a);
+                        UpdateBounds(b);
+                    }
+                }
+            }
+
+            return new Rect(minX, minY, maxX, maxY);
+        }
+
+        public CDTPreprocessor(CDTInput input, double eps = 1e-8)
         {
             _input = input;
-
-            _vertices = new List<CDTVector>();
-            _constraints = new List<(int, int)>();
-            _polygons = new List<(Polygon, Polygon[])>();
+            _rect = GetBounds(input);
+            _quad = new PointQuadtree<CDTVector>(_rect);
 
             List<Constraint> constraints = new List<Constraint>();
-            Rect rect = Rect.Empty;
             for (int i = 0; i < input.Polygons.Count; i++)
             {
-                rect = rect.Union(ProcessPolygon(constraints, i, input.Polygons[i], eps));
+                ProcessPolygon(constraints, i, input.Polygons[i], eps);
             }
-            _rect = rect;
-
 
             HashSet<Segment> seen = new HashSet<Segment>();
+            Func<PointQuadtree<CDTVector>.PointItem, double> xGetter = (o => o.X);
+            Func<PointQuadtree<CDTVector>.PointItem, double> yGetter = (o => o.Y);
+
             for (int i = constraints.Count - 1; i >= 0; i--)
             {
                 var item = constraints[i];
@@ -49,7 +93,7 @@ namespace CDTSharp
                     remove = true;
                     foreach ((Polygon contour, _) in _polygons)
                     {
-                        if (contour.Contains(_vertices, x, y))
+                        if (contour.Contains(_quad.Items, xGetter, yGetter, x, y))
                         {
                             remove = false;
                             break;
@@ -64,13 +108,13 @@ namespace CDTSharp
 
                     foreach ((Polygon contour, Polygon[] holes) in _polygons)
                     {
-                        if (contour.Contains(_vertices, x, y))
+                        if (contour.Contains(_quad.Items, xGetter, yGetter, x, y))
                         {
                             inAtLeastOneContour = true;
 
                             foreach (var hole in holes)
                             {
-                                if (hole.Contains(_vertices, x, y))
+                                if (hole.Contains(_quad.Items, xGetter, yGetter, x, y))
                                 {
                                     inAnyHole = true;
                                     break;
@@ -92,8 +136,8 @@ namespace CDTSharp
                     continue;
                 }
 
-                int ai = AddPoint(_vertices, a, eps);
-                int bi = AddPoint(_vertices, b, eps);
+                int ai = AddPoint(_quad, a, eps);
+                int bi = AddPoint(_quad, b, eps);
                 if (ai == bi) continue;
 
                 if (seen.Add(new Segment(ai, bi)))
@@ -105,22 +149,9 @@ namespace CDTSharp
         }
 
         public CDTInput Input => _input;
-        public List<CDTVector> Vertices => _vertices;
         public List<(int a, int b)> Constraints => _constraints;
         public List<(Polygon, Polygon[])> Polygons => _polygons;
         public Rect Rect => _rect;
-
-        public bool ContainsContour(CDTVector v)
-        {
-            foreach (var item in _polygons)
-            {
-                if (item.Item1.Contains(_vertices, v.x, v.y))
-                {
-                    return true;
-                }
-            }
-            return false;
-        }
 
         Rect ProcessPolygon(List<Constraint> constraints, int index, CDTPolygon cdtPolygon, double eps)
         {
@@ -185,7 +216,7 @@ namespace CDTSharp
 
             foreach (var item in pointConstraints)
             {
-                AddPoint(_vertices, item, eps);
+                AddPoint(_quad, item, eps);
             }
             return contour.Item2;
         }
@@ -195,7 +226,7 @@ namespace CDTSharp
             List<int> indices = new List<int>(points.Count);
             foreach (var item in points)
             {
-                indices.Add(AddPoint(_vertices, item, eps));
+                indices.Add(AddPoint(_quad, item, eps));
             }
             return new Polygon(index, indices);
         }
@@ -380,17 +411,10 @@ namespace CDTSharp
                 }
             }
         }
-
-        public int AddPoint(List<CDTVector> all, CDTVector v, double eps = 0)
+      
+        public int AddPoint(PointQuadtree<CDTVector> quad, CDTVector v, double eps = 0)
         {
-            int index = IndexOf(all, v, eps);
-            if (index < 0)
-            {
-                index = all.Count;
-                all.Add(v);
-                return index;
-            }
-            return index;
+            return quad.AddIfUnique(v.x, v.y, v, eps);
         }
 
         public static int IndexOf(List<CDTVector> all, CDTVector v, double eps = 0)

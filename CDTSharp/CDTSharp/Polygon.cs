@@ -27,15 +27,20 @@
             return new Rect(minX, minY, maxX, maxY);
         }
 
-        public bool Contains(List<CDTVector> vertices, double x, double y, double tolerance = 0)
+        public bool Contains<T>(List<T> vertices, Func<T, double> getX, Func<T, double> getY, double x, double y, double tolerance = 0)
         {
-            List<CDTVector>? verts = vertices;
             int count = indices.Count;
             bool inside = false;
             for (int i = 0, j = count - 1; i < count; j = i++)
             {
-                var (xi, yi) = verts[indices[i]];
-                var (xj, yj) = verts[indices[j]];
+                T vi = vertices[i];
+                T vj = vertices[j];
+
+                double xi = getX(vi);
+                double yi = getY(vi);
+
+                double xj = getX(vj);
+                double yj = getY(vj); 
 
                 bool crosses = (yi > y + tolerance) != (yj > y + tolerance);
                 if (!crosses) continue;
