@@ -1,4 +1,4 @@
-﻿namespace CDTSharp
+namespace CDTSharp
 {
     using System;
     using System.Runtime.CompilerServices;
@@ -12,6 +12,7 @@
         public readonly int[] indices, adjacent;
         public readonly bool[] constraint;
         public readonly List<int> parents;
+        public readonly bool super;
 
         public CDTTriangle(
             Circle circle,
@@ -21,7 +22,8 @@
             IEnumerable<int> parents = null)
         {
             this.circle = circle;
-            this.indices = [v0, v1, v2];
+             this.super = v0 < 3 || v1 < 3 || v2 < 3;
+             this.indices = [v0, v1, v2];
             this.adjacent = [adj0, adj1, adj2];
             this.constraint = [con0, con1, con2];
             this.parents = parents != null ? new List<int>(parents) : new List<int>();
