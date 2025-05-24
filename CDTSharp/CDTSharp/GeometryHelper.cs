@@ -9,7 +9,6 @@ namespace CDTSharp
 {
     public static class GeometryHelper
     {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool Intersect(Vec2 p1, Vec2 p2, Vec2 q1, Vec2 q2, out Vec2 intersection)
         {
             // P(u) = p1 + u * (p2 - p1)
@@ -50,7 +49,6 @@ namespace CDTSharp
             return true;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool OnSegment(Vec2 a, Vec2 b, Vec2 p, double epsilon)
         {
             double dxAB = b.x - a.x;
@@ -71,7 +69,6 @@ namespace CDTSharp
             return true;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool ConvexQuad(Vec2 a, Vec2 b, Vec2 c, Vec2 d)
         {
             return SameSide(a, b, c, d) && SameSide(d, c, b, a);

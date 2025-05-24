@@ -181,6 +181,14 @@ namespace CDTSharp
             return results;
         }
 
+        public List<Point> Query(Rect area, double eps = 1e-10)
+        {
+            List<Point> results = new List<Point>();
+            int steps = 0;
+            root.Query(area, results, ref steps, eps);
+            return results;
+        }
+
         public QuadtreeDebugInfo GetDebugInfo()
         {
             int totalNodes = 0;

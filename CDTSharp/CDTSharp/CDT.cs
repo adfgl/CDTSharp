@@ -15,9 +15,11 @@ namespace CDTSharp
         readonly Stack<Edge> _toLegalize = new Stack<Edge>();
         readonly List<(int, int)> _constrainedEdges = new List<(int, int)>();
 
+        PointQuadtree _quad;
+
         public CDT Triangulate(CDTInput input)
         {
-            var sw = System.Diagnostics.Stopwatch.StartNew();
+            Stopwatch sw = Stopwatch.StartNew();
             long last = 0;
 
             _v.Clear();
@@ -35,33 +37,33 @@ namespace CDTSharp
             last = sw.ElapsedMilliseconds;
 
             double expansionMargin = Math.Max(5, Math.Max(rect.dx, rect.dy) * 0.01);
-            PointQuadtree quad = new PointQuadtree(rect.Expand(expansionMargin));
+            _quad = new PointQuadtree(rect.Expand(expansionMargin));
 
             foreach ((Polygon poly, Polygon[] holes) in processed.Polygons)
             {
                 foreach (Vec2 item in poly.verts)
-                    Insert(quad, item);
+                    Insert(_quad, item);
 
                 foreach (Polygon hole in holes)
                     foreach (Vec2 item in hole.verts)
-                        Insert(quad, item);
+                        Insert(_quad, item);
             }
             Console.WriteLine($"[Insert polygon + hole vertices] {sw.ElapsedMilliseconds - last} ms");
             last = sw.ElapsedMilliseconds;
 
             foreach (Vec2 item in processed.PointConstraints)
-                Insert(quad, item);
+                Insert(_quad, item);
             Console.WriteLine($"[Insert point constraints] {sw.ElapsedMilliseconds - last} ms");
             last = sw.ElapsedMilliseconds;
 
             HashSet<Segment> seen = new HashSet<Segment>();
             foreach ((Vec2 a, Vec2 b) in processed.Constraints)
             {
-                int ai = quad.IndexOf(a.x, a.y);
-                if (ai == NO_INDEX) ai = Insert(quad, a);
+                int ai = _quad.IndexOf(a.x, a.y);
+                if (ai == NO_INDEX) ai = Insert(_quad, a);
 
-                int bi = quad.IndexOf(b.x, b.y);
-                if (bi == NO_INDEX) bi = Insert(quad, b);
+                int bi = _quad.IndexOf(b.x, b.y);
+                if (bi == NO_INDEX) bi = Insert(_quad, b);
 
                 if (seen.Add(new Segment(ai, bi)))
                     AddConstraint(ai + 3, bi + 3);
@@ -85,6 +87,7 @@ namespace CDTSharp
             last = sw.ElapsedMilliseconds;
 
             Console.WriteLine($"[Total] Triangulation completed in {sw.ElapsedMilliseconds} ms");
+            Console.WriteLine($"vts: {_v.Count} tris: {_t.Count}");
             return this;
         }
 
@@ -110,7 +113,7 @@ namespace CDTSharp
                     if (item.Item1.Contains(x, y))
                     {
                         bool insideHole = false;
-                        foreach (var hole in item.Item2)
+                        foreach (Polygon hole in item.Item2)
                         {
                             if (hole.Contains(x, y))
                             {
@@ -157,15 +160,18 @@ namespace CDTSharp
         {
             var (a, b) = seg;
             Circle diam = new Circle(_v[a], _v[b]);
-            for (int i = 0; i < _v.Count; i++)
-            {
-                if (a == i || b == i) continue;
+            double r = Math.Sqrt(diam.radiusSquared);
+            Rect bounds = new Rect(diam.x - r, diam.y - r, diam.x + r, diam.y + r);
 
-                Vec2 v = _v[i];
+            List<PointQuadtree.Point> elems = _quad.Query(bounds);
+            foreach (var item in elems)
+            {
+                int index = item.Index + 3;
+                if (index == a || index == b) continue;
+
+                Vec2 v = _v[index];
                 if (diam.Contains(v.x, v.y))
-                {
                     return true;
-                }
             }
             return false;
         }
@@ -175,6 +181,7 @@ namespace CDTSharp
             minAngle *= Math.PI / 180d;
 
             int refinedCount = 0;
+            int falseCheck = 0;
 
             HashSet<Segment> uniqueSegments = new HashSet<Segment>();
 
@@ -204,6 +211,7 @@ namespace CDTSharp
 
             double minSqrLen = Math.Sqrt(4.0 * maxArea / Math.Sqrt(3)) * 0.25;
             minSqrLen *= minSqrLen;
+
             while (segmentQueue.Count > 0 || triangleQueue.Count > 0)
             {
                 if (segmentQueue.Count > 0)
@@ -234,17 +242,15 @@ namespace CDTSharp
                     }
 
                     int insertedIndex = Insert(mid, triIndex, edgeIndex);
+                    _quad.Insert(mid.x, mid.y);
+
                     refinedCount++;
 
                     uniqueSegments.Remove(seg);
                     Segment s1 = new Segment(ia, insertedIndex);
                     Segment s2 = new Segment(insertedIndex, ib);
-
-                    uniqueSegments.Add(s1);
-                    uniqueSegments.Add(s2);
-
-                    if (Enchrouched(s1)) segmentQueue.Enqueue(s1);
-                    if (Enchrouched(s2)) segmentQueue.Enqueue(s2);
+                    if (uniqueSegments.Add(s1) && Enchrouched(s1)) segmentQueue.Enqueue(s1);
+                    if (uniqueSegments.Add(s2) && Enchrouched(s2)) segmentQueue.Enqueue(s2);
 
                     foreach (var item in _affected)
                     {
@@ -260,7 +266,11 @@ namespace CDTSharp
                 {
                     int triIndex = triangleQueue.Dequeue();
                     CDTTriangle tri = _t[triIndex];
-                    if (!IsBadTriangle(tri, minAngle, maxArea)) continue;
+                    if (!IsBadTriangle(tri, minAngle, maxArea))
+                    {
+                        falseCheck++;
+                        continue;
+                    }
 
                     Vec2 cc = new Vec2(tri.circle.x, tri.circle.y);
 
@@ -278,12 +288,15 @@ namespace CDTSharp
                     if (encroaches) continue;
 
                     var (tIndex, eIndex) = FindContaining(cc, EPS);
+
                     if (tIndex == NO_INDEX)
                     {
                         throw new Exception("Could not locate triangle for circumcenter.");
                     }
 
                     int vi = Insert(cc, tIndex, eIndex);
+                    _quad.Insert(cc.x, cc.y);
+
                     refinedCount++;
                     foreach (var item in _affected)
                     {
@@ -294,7 +307,25 @@ namespace CDTSharp
                     }
                 }
             }
+
+            Console.WriteLine("False check: " + falseCheck);
             return refinedCount;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool IsAngleTooSmall(Vec2 a, Vec2 b, Vec2 c, double cosMinAngle)
+        {
+            Vec2 ab = a - b;
+            Vec2 cb = c - b;
+
+            double abLen2 = Vec2.Dot(ab, ab);
+            double cbLen2 = Vec2.Dot(cb, cb);
+            if (abLen2 == 0 || cbLen2 == 0) return true; 
+
+            double dot = Vec2.Dot(ab, cb);
+            double cosTheta = dot / Math.Sqrt(abLen2 * cbLen2);
+
+            return cosTheta > cosMinAngle;
         }
 
         public bool IsBadTriangle(CDTTriangle tri, double minAllowedRad, double maxAllowedArea)
@@ -481,9 +512,8 @@ namespace CDTSharp
             bool constrained = tri0.constraint[e20];
 
             double a0 = Area(v0, v1, v4);
-            Circle c0 = new Circle(v0, v1, v4);
             _t[t0] = new CDTTriangle(
-                c0, a0,
+                new Circle(v0, v1, v4), a0,
                 i0, i1, i4,
                 tri0.adjacent[e01], t1, t3,
                 tri0.constraint[e01], false, constrained,
@@ -499,18 +529,16 @@ namespace CDTSharp
                 tri0.parents);
 
             double a2 = Area(v2, v3, v4);
-            Circle c2 = new Circle(v2, v3, v4);
             _t.Add(new CDTTriangle(
-                 c2, a2,
+                 new Circle(v2, v3, v4), a2,
                  i2, i3, i4,
                  tri1.adjacent[e23], t3, t1,
                  tri1.constraint[e23], false, constrained,
                  tri1.parents));
 
             double a3 = tri1.area - a2;
-            Circle c3 = new Circle(v3, v0, v4);
             _t.Add(new CDTTriangle(
-                 c3, a3,
+                 new Circle(v3, v0, v4), a3,
                  i3, i0, i4,
                  tri1.adjacent[e30], t0, t2,
                  tri1.constraint[e30], constrained, false,
@@ -522,8 +550,6 @@ namespace CDTSharp
                 int ti = inds[i];
                 SetAdjacent(ti, 0);
                 _toLegalize.Push(new Edge(ti, 0));
-                _toLegalize.Push(new Edge(ti, 1));
-                _toLegalize.Push(new Edge(ti, 2));
             }
         }
 
@@ -557,9 +583,8 @@ namespace CDTSharp
             Vec2 v3 = _v[i3];
 
             double a0 = Area(v0, v1, v3);
-            Circle c0 = new Circle(v0, v1, v3);
             _t[t0] = new CDTTriangle(
-                c0, a0,
+                new Circle(v0, v1, v3), a0,
                i0, i1, i3,
                tri.adjacent[0], t1, t2,
                tri.constraint[0], false, false,
@@ -575,9 +600,8 @@ namespace CDTSharp
                tri.parents));
 
             double a2 = tri.area - a0 - a1;
-            Circle c2 = new Circle(v2, v0, v3);
             _t.Add(new CDTTriangle(
-               c2, a2,
+                new Circle(v2, v0, v3), a2,
                i2, i0, i3,
                tri.adjacent[2], t0, t1,
                tri.constraint[2], false, false,
@@ -595,6 +619,9 @@ namespace CDTSharp
         public void FlipEdge(int triangleIndex, int edgeIndex)
         {
             /*
+             
+             v1 - is inserted point, we want to propagate flip away from it, otherwise we 
+             are risking ending up in flipping degeneracy
                           v1                        v1
                           /\                        /|\
                          /  \                      / | \
@@ -642,18 +669,16 @@ namespace CDTSharp
             IEnumerable<int> parents = tri0.parents.Concat(tri1.parents);
 
             double a0 = Area(v3, v1, v2);
-            Circle c0 = new Circle(v3, v1, v2);
             _t[t0] = new CDTTriangle(
-                c0, a0,
+                new Circle(v3, v1, v2), a0,
                 i3, i1, i2,
                 t1, tri0.adjacent[e12], tri1.adjacent[e23],
                 false, tri0.constraint[e12], tri1.constraint[e23],
                 parents);
 
             double a1 = tri0.area + tri1.area - a0;
-            Circle c1 = new Circle(v1, v3, v0);
             _t[t1] = new CDTTriangle(
-               c1, a1,
+               new Circle(v1, v3, v0), a1,
                i1, i3, i0,
                t0, tri1.adjacent[e30], tri0.adjacent[e01],
                false, tri1.constraint[e30], tri0.constraint[e01],
@@ -746,15 +771,12 @@ namespace CDTSharp
             throw new Exception("Could not find entrance triangle.");
         }
 
-        public (int triangleIndex, int edgeIndex) FindContaining(Vec2 point, double tolerance = 1e-6)
+        public (int triangleIndex, int edgeIndex) FindContaining(Vec2 point, double tolerance = 1e-6, int seed = NO_INDEX)
         {
-            List<Vec2> vertices = _v;
-            List<CDTTriangle> triangles = _t; 
-
-            int max = triangles.Count * 3;
+            int max = _t.Count * 3;
             int steps = 0;
 
-            int current = triangles.Count - 1;
+            int current = seed == NO_INDEX ? _t.Count - 1 : seed;
             while (true)
             {
                 if (steps++ > max)
@@ -762,14 +784,17 @@ namespace CDTSharp
                     throw new Exception("Could not find containing triangle. Most likely mesh topology is invalid.");
                 }
 
-                if (current == NO_INDEX) return (NO_INDEX, NO_INDEX);
+                if (current == NO_INDEX)
+                {
+                    return (NO_INDEX, NO_INDEX);
+                }
 
                 bool inside = true;
-                CDTTriangle tri = triangles[current];
+                CDTTriangle tri = _t[current];
                 for (int i = 0; i < 3; i++)
                 {
-                    Vec2 a = vertices[tri.indices[i]];
-                    Vec2 b = vertices[tri.indices[CDTTriangle.NEXT[i]]];
+                    Vec2 a = _v[tri.indices[i]];
+                    Vec2 b = _v[tri.indices[CDTTriangle.NEXT[i]]];
 
                     double cross = Vec2.Cross(a, b, point);
                     if (cross > tolerance)
@@ -792,7 +817,6 @@ namespace CDTSharp
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         void SetAdjacent(int triangle, int edge)
         {
             CDTTriangle t = _t[triangle];
@@ -838,13 +862,13 @@ namespace CDTSharp
 
                 if (ShouldFlip(t0, edge))
                 {
-                    FlipEdge(t0, edge);
-
                     int t1 = _t[t0].adjacent[edge];
                     if (t1 != NO_INDEX)
                     {
                         _affected.Add(t1);
                     }
+
+                    FlipEdge(t0, edge);
                 }
             }
         }

@@ -14,7 +14,7 @@ namespace CDTSharpConsole
                 Refine = true,
                 KeepConvex = false,
                 KeepSuper = false,
-                MaxArea = 155,
+                MaxArea = 55,
                 MinAngle = 33.3,
                 Polygons = new List<CDTPolygon>()
                 {
@@ -28,22 +28,17 @@ namespace CDTSharpConsole
             };
 
 
-            Stopwatch sw = new Stopwatch();
-            sw.Start();
             var cdt = new CDT();
             cdt.Triangulate(input);
 
-            try
-            {
-            }
-            catch (Exception e)
-            {
-                cdt.FinalizeMesh();
-                Console.WriteLine(cdt.ToSvg());
-            }
-
-            sw.Stop();
-            Console.WriteLine(sw.ElapsedMilliseconds + " ms");
+            //try
+            //{
+            //}
+            //catch (Exception e)
+            //{
+            //    cdt.FinalizeMesh();
+            //    Console.WriteLine(cdt.ToSvg());
+            //}
 
             double minArea = double.MaxValue;
             double maxArea = double.MinValue;
@@ -74,9 +69,10 @@ namespace CDTSharpConsole
             }
             avgArea /= cdt.Triangles.Count;
             avgAng /= 3 * cdt.Triangles.Count;
-            Console.WriteLine(cdt.ToSvg(fill: true, drawConstraints: false, drawCircles: false));
+            Console.WriteLine(cdt.ToSvg(fill: false, drawConstraints: false, drawCircles: false));
             Console.WriteLine();
-            Console.WriteLine("count: " + cdt.Triangles.Count);
+            Console.WriteLine("count tri: " + cdt.Triangles.Count);
+            Console.WriteLine("count vtx: " + cdt.Vertices.Count);
             Console.WriteLine("Area min: " + minArea);
             Console.WriteLine("Area max: " + maxArea);
             Console.WriteLine("Area avg: " + avgArea);
