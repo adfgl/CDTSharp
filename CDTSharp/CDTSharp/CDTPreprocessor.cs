@@ -21,49 +21,6 @@ namespace CDTSharp
 
         public PointQuadtree<CDTVector> Quad => _quad;
 
-        public static Rect GetBounds(CDTInput input)
-        {
-            double minX = double.MaxValue, minY = double.MaxValue;
-            double maxX = double.MinValue, maxY = double.MinValue;
-
-            void UpdateBounds(CDTVector v)
-            {
-                if (v.x < minX) minX = v.x;
-                if (v.y < minY) minY = v.y;
-                if (v.x > maxX) maxX = v.x;
-                if (v.y > maxY) maxY = v.y;
-            }
-
-            foreach (CDTPolygon poly in input.Polygons)
-            {
-                foreach (var v in poly.Contour)
-                    UpdateBounds(v);
-
-                if (poly.Holes != null)
-                {
-                    foreach (var hole in poly.Holes)
-                        foreach (var v in hole)
-                            UpdateBounds(v);
-                }
-
-                if (poly.Points != null)
-                {
-                    foreach (var v in poly.Points)
-                        UpdateBounds(v);
-                }
-
-                if (poly.Constraints != null)
-                {
-                    foreach ((CDTVector a, CDTVector b) in poly.Constraints)
-                    {
-                        UpdateBounds(a);
-                        UpdateBounds(b);
-                    }
-                }
-            }
-
-            return new Rect(minX, minY, maxX, maxY);
-        }
 
         public CDTPreprocessor(CDTInput input, double eps = 1e-8)
         {
@@ -152,6 +109,50 @@ namespace CDTSharp
         public List<(int a, int b)> Constraints => _constraints;
         public List<(Polygon, Polygon[])> Polygons => _polygons;
         public Rect Rect => _rect;
+
+        public static Rect GetBounds(CDTInput input)
+        {
+            double minX = double.MaxValue, minY = double.MaxValue;
+            double maxX = double.MinValue, maxY = double.MinValue;
+
+            void UpdateBounds(CDTVector v)
+            {
+                if (v.x < minX) minX = v.x;
+                if (v.y < minY) minY = v.y;
+                if (v.x > maxX) maxX = v.x;
+                if (v.y > maxY) maxY = v.y;
+            }
+
+            foreach (CDTPolygon poly in input.Polygons)
+            {
+                foreach (var v in poly.Contour)
+                    UpdateBounds(v);
+
+                if (poly.Holes != null)
+                {
+                    foreach (var hole in poly.Holes)
+                        foreach (var v in hole)
+                            UpdateBounds(v);
+                }
+
+                if (poly.Points != null)
+                {
+                    foreach (var v in poly.Points)
+                        UpdateBounds(v);
+                }
+
+                if (poly.Constraints != null)
+                {
+                    foreach ((CDTVector a, CDTVector b) in poly.Constraints)
+                    {
+                        UpdateBounds(a);
+                        UpdateBounds(b);
+                    }
+                }
+            }
+
+            return new Rect(minX, minY, maxX, maxY);
+        }
 
         Rect ProcessPolygon(List<Constraint> constraints, int index, CDTPolygon cdtPolygon, double eps)
         {

@@ -60,22 +60,6 @@ namespace CDTSharp
             return abx * acy - aby * acx;
         }
 
-        public double this[int index]
-        {
-            get
-            {
-                switch (index)
-                {
-                    case 0: return x;
-                    case 1: return y;
-                    case 2: return w;
-
-                    default:
-                        throw new ArgumentOutOfRangeException(nameof(index));
-                }
-            }
-        }
-
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static CDTVector operator +(CDTVector a, CDTVector b) => new CDTVector(a.x + b.x, a.y + b.y);
 
@@ -127,36 +111,10 @@ namespace CDTSharp
             return $"[{x.ToString(culture)} {y.ToString(culture)}]";
         }
 
-        public static CDTVector Project(CDTVector a, CDTVector b)
-        {
-            double bMagSquared = Dot(b, b);
-            if (bMagSquared < 1e-9) return Zero;
-            double scale = Dot(a, b) / bMagSquared;
-            return new CDTVector(b.x * scale, b.y * scale);
-        }
-
-        public static CDTVector Perpendicular(CDTVector a, bool clockwise)
-        {
-            if (clockwise) return new CDTVector(a.y, -a.x);
-            return new CDTVector(-a.y, a.x);
-        }
-
-        public static double Angle(CDTVector a, CDTVector b)
-        {
-            double dot = a.x * b.x + a.y * b.y;
-            double mag = Math.Sqrt((a.x * a.x + a.y * a.y) * (b.x * b.x + b.y * b.y));
-            return Math.Acos(Math.Clamp(dot / mag, 0, 1));
-        }
-
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static CDTVector MidPoint(CDTVector a, CDTVector b)
         {
             return new CDTVector((a.x + b.x) * 0.5, (a.y + b.y) * 0.5);
-        }
-
-        public static CDTVector Round(CDTVector v, int precision)
-        {
-            return new CDTVector(Math.Round(v.x, precision), Math.Round(v.y, precision));
         }
     }
 }

@@ -417,6 +417,23 @@
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool OnSegment(CDTVector a, CDTVector b, CDTVector p, double epsilon)
         {
+            double dxAB = b.x - a.x;
+            double dyAB = b.y - a.y;
+            double dxAP = p.x - a.x;
+            double dyAP = p.y - a.y;
+
+            double cross = dxAB * dyAP - dyAB * dxAP;
+            if (Math.Abs(cross) > epsilon)
+                return false;
+
+            double dot = dxAP * dxAB + dyAP * dyAB;
+            if (dot < 0) return false;
+
+            double lenSq = dxAB * dxAB + dyAB * dyAB;
+            if (dot > lenSq) return false;
+
+            return true;
+
             double sqrA = (a - p).Length();
             double sqrB = (b - p).Length();
             double sqr = (a - b).Length();

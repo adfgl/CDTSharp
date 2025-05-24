@@ -198,8 +198,6 @@ namespace CDTSharp
         }
     }
 
-
-
     public struct QuadtreeDebugInfo
     {
         public int TotalElements;
