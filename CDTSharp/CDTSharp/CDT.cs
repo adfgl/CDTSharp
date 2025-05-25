@@ -77,18 +77,6 @@ namespace CDTSharp
             double expansionMargin = Math.Max(5, Math.Max(rect.dx, rect.dy) * 0.01);
             PointQuadtree quad = new PointQuadtree(rect.Expand(expansionMargin));
 
-            //foreach ((Polygon poly, Polygon[] holes) in processed.Polygons)
-            //{
-            //    foreach (var item in new List<Polygon>(holes) { poly })
-            //    {
-            //        foreach (var v in item.verts)
-            //        {
-            //            Insert(quad, v);
-            //        }
-            //    }
-
-            //}
-
             HashSet<Segment> seen = new HashSet<Segment>();
             foreach ((Vec2 a, Vec2 b) in processed.Constraints)
             {
@@ -117,14 +105,13 @@ namespace CDTSharp
                 {
                     _constrainedEdges.Add(s);
                     AddConstraint(ai, bi);
-                    Console.WriteLine(this.ToSvg());
-                    Console.WriteLine();
                 }
-                   
             }
 
             foreach (Vec2 item in processed.PointConstraints)
+            {
                 Insert(quad, item);
+            }
 
             MarkHoles(processed.Polygons);
 
