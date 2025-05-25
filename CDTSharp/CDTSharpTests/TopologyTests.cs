@@ -28,14 +28,14 @@ namespace CDTSharpTests
                 ];
 
             List<CDTTriangle> t = [
-                new CDTTriangle(new Circle(), 3, 6, 4, 4, 5, 1),   // 0
-                new CDTTriangle(new Circle(), 1, 3, 4, 2, 0, 3),   // 1
-                new CDTTriangle(new Circle(), 1, 0, 3, NO_INDEX, 6, 1), // 2
-                new CDTTriangle(new Circle(), 4, 2, 1, 7, NO_INDEX, 1), // 3
-                new CDTTriangle(new Circle(), 5, 6, 3, NO_INDEX, 0, 6), // 4
-                new CDTTriangle(new Circle(), 7, 4, 6, 7, 0, NO_INDEX), // 5
-                new CDTTriangle(new Circle(), 5, 3, 0, 4, 2, NO_INDEX), // 6
-                new CDTTriangle(new Circle(), 7, 2, 4, NO_INDEX, 3, 5), // 7
+                new CDTTriangle(new Circle(),0, 3, 6, 4, 4, 5, 1),   // 0
+                new CDTTriangle(new Circle(),0, 1, 3, 4, 2, 0, 3),   // 1
+                new CDTTriangle(new Circle(),0, 1, 0, 3, NO_INDEX, 6, 1), // 2
+                new CDTTriangle(new Circle(),0, 4, 2, 1, 7, NO_INDEX, 1), // 3
+                new CDTTriangle(new Circle(),0, 5, 6, 3, NO_INDEX, 0, 6), // 4
+                new CDTTriangle(new Circle(),0, 7, 4, 6, 7, 0, NO_INDEX), // 5
+                new CDTTriangle(new Circle(),0, 5, 3, 0, 4, 2, NO_INDEX), // 6
+                new CDTTriangle(new Circle(),0, 7, 2, 4, NO_INDEX, 3, 5), // 7
                 ];
 
             var cdt = new CDT();
@@ -79,7 +79,10 @@ namespace CDTSharpTests
                     Edge expectedA = cdt.FindEdge(a, b);
                     Edge expectedB = cdt.FindEdge(b, a);
 
-                    Vec2 center = (cdt.Vertices[a] + cdt.Vertices[b]) / 2;
+                    Vec2 va = cdt.Vertices[a];
+                    Vec2 vb = cdt.Vertices[b];
+
+                    Vec2 center = (va + vb) / 2;
 
                     (int ti, int ei) = cdt.FindContaining(center);
 
@@ -152,10 +155,10 @@ namespace CDTSharpTests
             cdt.Vertices.Add(new Vec2(0, 0));
             cdt.SplitEdge(0, triangles[0].IndexOf(4, 3), vi);
 
-            AssertHelper.Equal(new CDTTriangle(new Circle(), 3, 6, vi, 4, 1, 9), triangles, 0);
-            AssertHelper.Equal(new CDTTriangle(new Circle(), 6, 4, vi, 5, 8, 0), triangles, 1);
-            AssertHelper.Equal(new CDTTriangle(new Circle(), 4, 1, vi, 3, 9, 1), triangles, 8);
-            AssertHelper.Equal(new CDTTriangle(new Circle(), 1, 3, vi, 2, 0, 8), triangles, 9);
+            AssertHelper.Equal(new CDTTriangle(new Circle(), 0, 3, 6, vi, 4, 1, 9), triangles, 0);
+            AssertHelper.Equal(new CDTTriangle(new Circle(), 0, 6, 4, vi, 5, 8, 0), triangles, 1);
+            AssertHelper.Equal(new CDTTriangle(new Circle(), 0, 4, 1, vi, 3, 9, 1), triangles, 8);
+            AssertHelper.Equal(new CDTTriangle(new Circle(), 0, 1, 3, vi, 2, 0, 8), triangles, 9);
         }
 
         [Fact]
@@ -168,9 +171,9 @@ namespace CDTSharpTests
             cdt.Vertices.Add(new Vec2(0, 0));
             cdt.SplitTriangle(0, cdt.Vertices.Count - 1);
 
-            AssertHelper.Equal(new CDTTriangle(new Circle(), 0, 1, 3, NO_INDEX, 1, 2), cdt.Triangles, 0);
-            AssertHelper.Equal(new CDTTriangle(new Circle(), 1, 2, 3, NO_INDEX, 2, 0), cdt.Triangles, 1);
-            AssertHelper.Equal(new CDTTriangle(new Circle(), 2, 0, 3, NO_INDEX, 0, 1), cdt.Triangles, 2);
+            AssertHelper.Equal(new CDTTriangle(new Circle(), 0, 0, 1, 3, NO_INDEX, 1, 2), cdt.Triangles, 0);
+            AssertHelper.Equal(new CDTTriangle(new Circle(), 0, 1, 2, 3, NO_INDEX, 2, 0), cdt.Triangles, 1);
+            AssertHelper.Equal(new CDTTriangle(new Circle(), 0, 2, 0, 3, NO_INDEX, 0, 1), cdt.Triangles, 2);
         }
 
         [Fact]
@@ -194,8 +197,8 @@ namespace CDTSharpTests
 
             cdt.FlipEdge(0, triangles[0].IndexOf(4, 3));
 
-            AssertHelper.Equal(new CDTTriangle(new Circle(), 1, 6, 4, 1, 5, 3), triangles, 0);
-            AssertHelper.Equal(new CDTTriangle(new Circle(), 6, 1, 3, 0, 2, 4), triangles, 1);
+            AssertHelper.Equal(new CDTTriangle(new Circle(), 0, 1, 6, 4, 1, 5, 3), triangles, 0);
+            AssertHelper.Equal(new CDTTriangle(new Circle(), 0, 6, 1, 3, 0, 2, 4), triangles, 1);
                 
             CDTTriangle t5 = triangles[5];
             Assert.Equal(0, t5.adjacent[t5.IndexOf(4, 6)]);

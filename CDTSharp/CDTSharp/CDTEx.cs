@@ -74,8 +74,8 @@ namespace CDTSharp
                 sb.Append("<path d='");
                 foreach (var (a, b) in cdt.Constraints)
                 {
-                    var va = cdt.Vertices[a];
-                    var vb = cdt.Vertices[b];
+                    var va = cdt.Vertices[a - 3];
+                    var vb = cdt.Vertices[b - 3];
                     var (x1, y1) = Project(va.x, va.y);
                     var (x2, y2) = Project(vb.x, vb.y);
                     sb.Append($"M{x1:F1},{y1:F1}L{x2:F1},{y2:F1}");

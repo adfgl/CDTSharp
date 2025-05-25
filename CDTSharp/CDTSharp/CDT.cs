@@ -2,7 +2,9 @@ namespace CDTSharp
 {
     using System;
     using System.Diagnostics;
+    using System.Reflection;
     using System.Runtime.CompilerServices;
+    using System.Security.Cryptography;
 
     public class CDT
     {
@@ -13,7 +15,7 @@ namespace CDTSharp
         readonly List<CDTTriangle> _t = new List<CDTTriangle>();
         readonly List<int> _affected = new List<int>();
         readonly Stack<Edge> _toLegalize = new Stack<Edge>();
-        readonly List<(int, int)> _constrainedEdges = new List<(int, int)>();
+        readonly List<Segment> _constrainedEdges = new List<Segment>();
 
         PointQuadtree _quad;
 
@@ -39,36 +41,44 @@ namespace CDTSharp
             double expansionMargin = Math.Max(5, Math.Max(rect.dx, rect.dy) * 0.01);
             _quad = new PointQuadtree(rect.Expand(expansionMargin));
 
-            foreach ((Polygon poly, Polygon[] holes) in processed.Polygons)
+            HashSet<Segment> seen = new HashSet<Segment>();
+            foreach ((Vec2 a, Vec2 b) in processed.Constraints)
             {
-                foreach (Vec2 item in poly.verts)
-                    Insert(_quad, item);
+                int ai = _quad.IndexOf(a.x, a.y);
+                if (ai == NO_INDEX)
+                {
+                    ai = Insert(_quad, a);
+                }
+                else
+                {
+                    ai += 3;
+                }
 
-                foreach (Polygon hole in holes)
-                    foreach (Vec2 item in hole.verts)
-                        Insert(_quad, item);
+                int bi = _quad.IndexOf(b.x, b.y);
+                if (bi == NO_INDEX)
+                {
+                    bi = Insert(_quad, b);
+                }
+                else
+                {
+                    bi += 3;
+                }
+
+                var s = new Segment(ai, bi);
+                if (seen.Add(s))
+                {
+                    _constrainedEdges.Add(s);
+                    AddConstraint(ai, bi);
+                }
+                   
             }
-            Console.WriteLine($"[Insert polygon + hole vertices] {sw.ElapsedMilliseconds - last} ms");
+
+            Console.WriteLine($"[Add constraints] {sw.ElapsedMilliseconds - last} ms");
             last = sw.ElapsedMilliseconds;
 
             foreach (Vec2 item in processed.PointConstraints)
                 Insert(_quad, item);
             Console.WriteLine($"[Insert point constraints] {sw.ElapsedMilliseconds - last} ms");
-            last = sw.ElapsedMilliseconds;
-
-            HashSet<Segment> seen = new HashSet<Segment>();
-            foreach ((Vec2 a, Vec2 b) in processed.Constraints)
-            {
-                int ai = _quad.IndexOf(a.x, a.y);
-                if (ai == NO_INDEX) ai = Insert(_quad, a);
-
-                int bi = _quad.IndexOf(b.x, b.y);
-                if (bi == NO_INDEX) bi = Insert(_quad, b);
-
-                if (seen.Add(new Segment(ai, bi)))
-                    AddConstraint(ai + 3, bi + 3);
-            }
-            Console.WriteLine($"[Add constraints] {sw.ElapsedMilliseconds - last} ms");
             last = sw.ElapsedMilliseconds;
 
             MarkHoles(processed.Polygons);
@@ -94,7 +104,7 @@ namespace CDTSharp
 
         public List<Vec2> Vertices => _v;
         public List<CDTTriangle> Triangles => _t;
-        public List<(int, int)> Constraints => _constrainedEdges;
+        public List<Segment> Constraints => _constrainedEdges;
 
         void MarkHoles(List<(Polygon, Polygon[])> polys)
         {
@@ -139,7 +149,7 @@ namespace CDTSharp
             return (_v[t.indices[0]] + _v[t.indices[1]] + _v[t.indices[2]]) / 3;
         }
 
-        bool IsVisibleFromInterior(HashSet<Segment> segments, Segment seg, Vec2 point)
+        bool IsVisibleFromInterior(List<Segment> segments, Segment seg, Vec2 point)
         {
             Vec2 mid = Vec2.MidPoint(_v[seg.a], _v[seg.b]);
             foreach (Segment s in segments)
@@ -154,6 +164,19 @@ namespace CDTSharp
                   
             }
             return true;
+        }
+
+        bool Enchrouched(Segment seg, List<Vec2> verts)
+        {
+            var (a, b) = seg;
+            Circle diam = new Circle(_v[a], _v[b]);
+
+            foreach (var item in verts)
+            {
+                if (diam.Contains(item.x, item.y))
+                    return true;
+            }
+            return false;
         }
 
         bool Enchrouched(Segment seg)
@@ -183,10 +206,18 @@ namespace CDTSharp
             int refinedCount = 0;
             int falseCheck = 0;
 
-            HashSet<Segment> uniqueSegments = new HashSet<Segment>();
-
+            List<Segment> allSegments = new List<Segment>();
             Queue<Segment> segmentQueue = new Queue<Segment>();
             Queue<int> triangleQueue = new Queue<int>();
+            foreach (var segment in _constrainedEdges)
+            {
+                allSegments.Add(segment);
+                if (Enchrouched(segment))
+                {
+                    segmentQueue.Enqueue(segment);
+                }
+            }
+
             for (int i = 0; i < _t.Count; i++)
             {
                 CDTTriangle tri = _t[i];
@@ -194,63 +225,63 @@ namespace CDTSharp
                 {
                     triangleQueue.Enqueue(i);
                 }
-
-                for (int j = 0; j < 3; j++)
-                {
-                    if (!tri.constraint[j]) continue;
-
-                    int a = tri.indices[j];
-                    int b = tri.indices[CDTTriangle.NEXT[j]];
-                    Segment seg = new Segment(a, b);
-                    if (uniqueSegments.Add(seg) && Enchrouched(seg))
-                    {
-                        segmentQueue.Enqueue(seg);
-                    }
-                }
             }
 
             double minSqrLen = Math.Sqrt(4.0 * maxArea / Math.Sqrt(3)) * 0.25;
             minSqrLen *= minSqrLen;
 
+            List<Vec2> segmentVertices = new List<Vec2>();
+            List<Vec2> circumVertices = new List<Vec2>();
+
+            int checkedTris = 0;
+            int checkedEdges = 0;
             while (segmentQueue.Count > 0 || triangleQueue.Count > 0)
             {
                 if (segmentQueue.Count > 0)
                 {
                     Segment seg = segmentQueue.Dequeue();
+                    checkedEdges++;
+
                     var (ia, ib) = seg;
 
                     Vec2 a = _v[ia];
                     Vec2 b = _v[ib];
                     double sqrLen = Vec2.SquareLength(a - b);
                     if (sqrLen < minSqrLen)
+                    {
                         continue;
+                    }
 
                     Circle diam = new Circle(a, b);
 
                     Vec2 mid = new Vec2(diam.x, diam.y);
+                    segmentVertices.Add(mid);
 
                     var (triIndex, edgeIndex) = FindContaining(mid, EPS);
                     if (edgeIndex == NO_INDEX)
                     {
-                        Edge edge = FindEdge(ia, ib);
-                        if (edge.index == NO_INDEX)
+                        Edge e = FindEdge(triIndex, ia, ib);
+                        if (e.index == NO_INDEX)
                         {
                             throw new Exception($"Midpoint of segment ({ia},{ib}) not found on any edge.");
                         }
-                        triIndex = edge.triangle;
-                        edgeIndex = edge.index;
+                        edgeIndex = e.index;
                     }
 
                     int insertedIndex = Insert(mid, triIndex, edgeIndex);
+
                     _quad.Insert(mid.x, mid.y);
 
                     refinedCount++;
 
-                    uniqueSegments.Remove(seg);
                     Segment s1 = new Segment(ia, insertedIndex);
                     Segment s2 = new Segment(insertedIndex, ib);
-                    if (uniqueSegments.Add(s1) && Enchrouched(s1)) segmentQueue.Enqueue(s1);
-                    if (uniqueSegments.Add(s2) && Enchrouched(s2)) segmentQueue.Enqueue(s2);
+                    allSegments.Remove(seg);
+                    allSegments.Add(s1);
+                    allSegments.Add(s2);
+
+                    if (Enchrouched(s1) && IsVisibleFromInterior(allSegments, s1, mid)) segmentQueue.Enqueue(s1);
+                    if (Enchrouched(s2) && IsVisibleFromInterior(allSegments, s2, mid)) segmentQueue.Enqueue(s2);
 
                     foreach (var item in _affected)
                     {
@@ -265,6 +296,7 @@ namespace CDTSharp
                 if (triangleQueue.Count > 0)
                 {
                     int triIndex = triangleQueue.Dequeue();
+                    checkedTris++;
                     CDTTriangle tri = _t[triIndex];
                     if (!IsBadTriangle(tri, minAngle, maxArea))
                     {
@@ -275,20 +307,25 @@ namespace CDTSharp
                     Vec2 cc = new Vec2(tri.circle.x, tri.circle.y);
 
                     bool encroaches = false;
-                    foreach (Segment seg in uniqueSegments)
+                    foreach (Segment seg in allSegments)
                     {
                         Circle diam = new Circle(_v[seg.a], _v[seg.b]);
-                        if (diam.Contains(cc.x, cc.y) && IsVisibleFromInterior(uniqueSegments, seg, cc))
+                        if (diam.Contains(cc.x, cc.y) && IsVisibleFromInterior(allSegments, seg, cc))
                         {
                             segmentQueue.Enqueue(seg);
                             encroaches = true;
                         }
                     }
 
-                    if (encroaches) continue;
+                    if (encroaches)
+                    {
+                        continue;
+                    }
+
+                    circumVertices.Add(cc);
+                 
 
                     var (tIndex, eIndex) = FindContaining(cc, EPS);
-
                     if (tIndex == NO_INDEX)
                     {
                         throw new Exception("Could not locate triangle for circumcenter.");
@@ -309,6 +346,8 @@ namespace CDTSharp
             }
 
             Console.WriteLine("False check: " + falseCheck);
+            Console.WriteLine("Checked tris: " + checkedTris);
+            Console.WriteLine("Checked edges: " + checkedEdges);
             return refinedCount;
         }
 
@@ -338,11 +377,21 @@ namespace CDTSharp
             Vec2 b = _v[tri.indices[1]];
             Vec2 c = _v[tri.indices[2]];
 
+            double ab = Vec2.SquareLength(a - b);
+            double bc = Vec2.SquareLength(b - c);
+            double ac = Vec2.SquareLength(c - a);
+            double minEdge = Math.Min(Math.Min(ab, bc), ac);
+
+            if (tri.circle.radiusSquared / minEdge > 2)
+            {
+                return false;
+            }
+
             double radABC = Angle(a, b, c);
             double radBCA = Angle(b, c, a);
             double radCAB = Math.PI - radABC - radBCA;
-
             double minRad = Math.Min(Math.Min(radABC, radBCA), radCAB);
+
             return minRad < minAllowedRad;
         }
 
@@ -616,7 +665,7 @@ namespace CDTSharp
             }
         }
 
-        public void FlipEdge(int triangleIndex, int edgeIndex)
+        public int[] FlipEdge(int triangleIndex, int edgeIndex)
         {
             /*
              
@@ -692,6 +741,16 @@ namespace CDTSharp
             // push edge oppsote to v1
             _toLegalize.Push(new Edge(t0, 2));
             _toLegalize.Push(new Edge(t1, 1));
+
+            return new[]
+            {
+                t0,
+                t1,
+                //tri0.adjacent[e12],
+                //tri1.adjacent[e23],
+                //tri1.adjacent[e30],
+                //tri0.adjacent[e01]
+            };
         }
 
 
@@ -771,7 +830,7 @@ namespace CDTSharp
             throw new Exception("Could not find entrance triangle.");
         }
 
-        public (int triangleIndex, int edgeIndex) FindContaining(Vec2 point, double tolerance = 1e-6, int seed = NO_INDEX)
+        public (int triangleIndex, int edgeIndex) FindContaining(Vec2 point, double tolerance = 1e-12, int seed = NO_INDEX)
         {
             int max = _t.Count * 3;
             int steps = 0;
@@ -797,16 +856,16 @@ namespace CDTSharp
                     Vec2 b = _v[tri.indices[CDTTriangle.NEXT[i]]];
 
                     double cross = Vec2.Cross(a, b, point);
+                    if (Math.Abs(cross) < tolerance && GeometryHelper.OnSegment(a, b, point, tolerance))
+                    {
+                        return (current, i);
+                    }
+
                     if (cross > tolerance)
                     {
                         current = tri.adjacent[i];
                         inside = false;
                         break;
-                    }
-
-                    if (Math.Abs(cross) < tolerance && GeometryHelper.OnSegment(a, b, point, tolerance))
-                    {
-                        return (current, i);
                     }
                 }
 
@@ -862,15 +921,29 @@ namespace CDTSharp
 
                 if (ShouldFlip(t0, edge))
                 {
-                    int t1 = _t[t0].adjacent[edge];
-                    if (t1 != NO_INDEX)
+                    int[] affected = FlipEdge(t0, edge);
+                    foreach (var item in affected)
                     {
-                        _affected.Add(t1);
+                        if (item == NO_INDEX) continue;
+                        _affected.Add(item);
                     }
-
-                    FlipEdge(t0, edge);
                 }
             }
+        }
+
+        public Edge FindEdge(int triangle, int start, int end)
+        {
+            TriangleWalker walker = new TriangleWalker(_t, triangle, end);
+            do
+            {
+                int current = walker.Current;
+                int edge = _t[current].IndexOfInvariant(start, end);
+                if (edge != NO_INDEX)
+                    return new Edge(current, edge);
+            }
+            while (walker.MoveNextCW());
+
+            return new Edge(triangle, NO_INDEX);
         }
 
         public Edge FindEdge(int aIndex, int bIndex)
@@ -893,18 +966,7 @@ namespace CDTSharp
 
                 }
             }
-
-            TriangleWalker walker = new TriangleWalker(_t, lastContained, aIndex);
-            do
-            {
-                int current = walker.Current;
-                int edge = _t[current].IndexOfInvariant(aIndex, bIndex);
-                if (edge != NO_INDEX)
-                    return new Edge(current, edge);
-            }
-            while (walker.MoveNextCW());
-
-            return new Edge(lastContained, NO_INDEX);
+            return FindEdge(lastContained, aIndex, bIndex);
         }
 
         public void AddConstraint(int aIndex, int bIndex)
@@ -984,7 +1046,7 @@ namespace CDTSharp
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static double Area(Vec2 a, Vec2 b, Vec2 c)
         {
-            return Math.Abs(Vec2.Cross(a, b, c)) * 0.5;
+            return -Vec2.Cross(a, b, c) * 0.5;
         }
     }
 }

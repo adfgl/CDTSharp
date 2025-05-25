@@ -11,19 +11,19 @@ namespace CDTSharpConsole
         {
             CDTInput input = new CDTInput()
             {
-                Refine = true,
+                Refine = false,
                 KeepConvex = false,
                 KeepSuper = false,
                 MaxArea = 55,
-                MinAngle = 33.3,
+                MinAngle = 22.7,
                 Polygons = new List<CDTPolygon>()
                 {
-                    new CDTPolygon(StandardShapes.Circle(0, 0, 100, 36))
-                    //StandardShapes.Pyramid(0, 0, 46, 4),
-                     //StandardShapes.Pyramid(33, 33, 46, 4),
-                     //   StandardShapes.Pyramid(-33, 33, 46, 4),
-                     //                  StandardShapes.Pyramid(-33, -33, 46, 4),
-                     //                              StandardShapes.Pyramid(33, -33, 46, 4),
+                    //new CDTPolygon(StandardShapes.Circle(0, 0, 100, 15))
+                    StandardShapes.Pyramid(0, 0, 46, 4),
+                     StandardShapes.Pyramid(33, 33, 46, 4),
+                        StandardShapes.Pyramid(-33, 33, 46, 4),
+                                       StandardShapes.Pyramid(-33, -33, 46, 4),
+                                                   StandardShapes.Pyramid(33, -33, 46, 4),
                 }
             };
 
@@ -31,14 +31,14 @@ namespace CDTSharpConsole
             var cdt = new CDT();
             cdt.Triangulate(input);
 
-            //try
-            //{
-            //}
-            //catch (Exception e)
-            //{
-            //    cdt.FinalizeMesh();
-            //    Console.WriteLine(cdt.ToSvg());
-            //}
+            try
+            {
+            }
+            catch (Exception e)
+            {
+                //cdt.FinalizeMesh();
+                Console.WriteLine(cdt.ToSvg());
+            }
 
             double minArea = double.MaxValue;
             double maxArea = double.MinValue;
@@ -60,7 +60,7 @@ namespace CDTSharpConsole
 
                     double ang = CDT.Angle(a, b, c) * 180 / Math.PI;
                     if (minAng > ang) minAng = ang;
-                    if (maxAng <  ang) maxAng = ang;
+                    if (maxAng < ang) maxAng = ang;
                     avgAng += ang;
                 }
 
@@ -69,7 +69,7 @@ namespace CDTSharpConsole
             }
             avgArea /= cdt.Triangles.Count;
             avgAng /= 3 * cdt.Triangles.Count;
-            Console.WriteLine(cdt.ToSvg(fill: false, drawConstraints: false, drawCircles: false));
+            Console.WriteLine(cdt.ToSvg(fill: true, drawConstraints: false, drawCircles: false));
             Console.WriteLine();
             Console.WriteLine("count tri: " + cdt.Triangles.Count);
             Console.WriteLine("count vtx: " + cdt.Vertices.Count);
@@ -82,7 +82,10 @@ namespace CDTSharpConsole
             Console.WriteLine("Ang avg: " + avgAng);
 
 
+            //var a = new Vec2(0, 50);
+            //var b = new Vec2(25, 0);
 
+            //Console.WriteLine(CDT.Orient2D(a, b, Vec2.MidPoint(a, b)));
         }
 
 
