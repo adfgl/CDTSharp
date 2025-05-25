@@ -250,7 +250,7 @@ namespace CDTSharp
                     }
 
                     Vec2 mid = new Vec2(diam.x, diam.y);
-                    Edge e = FindEdgeBrute(ia, ib);
+                    Edge e = FindEdge(ia, ib);
                     if (e.index == NO_INDEX)
                     {
                         throw new Exception($"Midpoint of segment ({ia},{ib}) not found on any edge.");
@@ -265,8 +265,8 @@ namespace CDTSharp
                     allSegments.Add(s1);
                     allSegments.Add(s2);
 
-                    if (IsVisibleFromInterior(allSegments, s1, mid)) segmentQueue.Enqueue(s1);
-                    if (IsVisibleFromInterior(allSegments, s2, mid)) segmentQueue.Enqueue(s2);
+                    if (IsVisibleFromInterior(allSegments, s1, mid) && Enchrouched(s1, _v)) segmentQueue.Enqueue(s1);
+                    if (IsVisibleFromInterior(allSegments, s2, mid) && Enchrouched(s2, _v)) segmentQueue.Enqueue(s2);
 
                     foreach (var item in _affected)
                     {
