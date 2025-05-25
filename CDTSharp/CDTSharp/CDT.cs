@@ -62,6 +62,8 @@ namespace CDTSharp
             Console.WriteLine("Ang avg: " + avgAng);
         }
 
+        PointQuadtree quad;
+
         public CDT Triangulate(CDTInput input)
         {
             _v.Clear();
@@ -75,7 +77,18 @@ namespace CDTSharp
             AddSuperTriangle(rect);
 
             double expansionMargin = Math.Max(5, Math.Max(rect.dx, rect.dy) * 0.01);
-            PointQuadtree quad = new PointQuadtree(rect.Expand(expansionMargin));
+            quad = new PointQuadtree(rect.Expand(expansionMargin));
+
+            foreach ((Polygon a, Polygon[] b) in processed.Polygons)
+            {
+                foreach (var item in new List<Polygon>(b) { a})
+                {
+                    foreach (var v in item.verts)
+                    {
+                        Insert(quad, v);
+                    }
+                }
+            }
 
             HashSet<Segment> seen = new HashSet<Segment>();
             foreach ((Vec2 a, Vec2 b) in processed.Constraints)
@@ -106,8 +119,6 @@ namespace CDTSharp
                     AddConstraint(s);
                 }
             }
-
-            ResolvePendingConstraints();
 
             foreach (Vec2 item in processed.PointConstraints)
             {
@@ -677,7 +688,7 @@ namespace CDTSharp
             return GeometryHelper.ConvexQuad(v0, v1, v2, v3);
         }
 
-        public bool FlipEdge(int triangleIndex, int edgeIndex)
+        public void FlipEdge(int triangleIndex, int edgeIndex)
         {
             /*
              
@@ -728,19 +739,13 @@ namespace CDTSharp
             Vec2 v3 = _v[i3];
 
             List<int> parents = new List<int>(tri0.parents);
-            foreach (int p in tri1.parents)
-            {
-                if (!parents.Contains(p)) parents.Add(p);
-            }
-
-            bool constraint = tri0.constraint[e20];
 
             double a0 = Area(v3, v1, v2);
             _t[t0] = new CDTTriangle(
                 new Circle(v3, v1, v2), a0,
                 i3, i1, i2,
                 t1, tri0.adjacent[e12], tri1.adjacent[e23],
-                constraint, tri0.constraint[e12], tri1.constraint[e23],
+                false, tri0.constraint[e12], tri1.constraint[e23],
                 parents);
 
             double a1 = tri0.area + tri1.area - a0;
@@ -748,7 +753,7 @@ namespace CDTSharp
                new Circle(v1, v3, v0), a1,
                i1, i3, i0,
                t0, tri1.adjacent[e30], tri0.adjacent[e01],
-               constraint, tri1.constraint[e30], tri0.constraint[e01],
+               false, tri1.constraint[e30], tri0.constraint[e01],
                parents);
 
             SetAdjacent(t0, 1);
@@ -759,7 +764,6 @@ namespace CDTSharp
             // push edge oppsote to v1
             _toLegalize.Push(new Edge(t0, 2));
             _toLegalize.Push(new Edge(t1, 1));
-            return true;
         }
 
         public bool ShouldFlip(int triangleIndex, int edgeIndex)
@@ -1004,76 +1008,17 @@ namespace CDTSharp
             return FindEdge(lastContained, aIndex, bIndex);
         }
 
-        public void InsertSteinerAndSplit(Segment segment, int maxDepth = 10)
-        {
-            Stack<(Segment seg, int depth)> stack = new();
-            stack.Push((segment, 0));
-
-            while (stack.Count > 0)
-            {
-                var (s, depth) = stack.Pop();
-                if (depth > maxDepth)
-                    throw new Exception("Too many Steiner splits — possible infinite recursion.");
-
-                int a = s.a;
-                int b = s.b;
-                if (a == b) continue;
-
-                Edge edge = FindEdge(a, b);
-                if (edge.index != NO_INDEX)
-                {
-                    SetConstraint(edge.triangle, edge.index);
-                    _constrainedEdges.Add(s);
-                    continue;
-                }
-
-                Vec2 va = _v[a], vb = _v[b];
-                if (Vec2.SquareLength(va - vb) < 1e-14) // Avoid splitting zero-length segments
-                    continue;
-
-                Vec2 mid = Vec2.MidPoint(va, vb);
-                var (triIndex, edgeIndex) = FindContaining(mid);
-                if (triIndex == NO_INDEX)
-                    throw new Exception($"Could not locate triangle for ({a}, {b}) midpoint");
-
-                int inserted = Insert(mid, triIndex, edgeIndex);
-
-                Segment left = new Segment(a, inserted);
-                Segment right = new Segment(inserted, b);
-                stack.Push((left, depth + 1));
-                stack.Push((right, depth + 1));
-            }
-        }
-
-        List<Segment> _pendingConstraints = new();
-
         public void AddConstraint(Segment segment)
         {
-            if (!TryInsertConstraint(segment))
-            {
-                _pendingConstraints.Add(segment);
-            }
-        }
-
-        public void ResolvePendingConstraints()
-        {
-            foreach (Segment seg in _pendingConstraints)
-            {
-                InsertSteinerAndSplit(seg); 
-            }
-            _pendingConstraints.Clear();
-        }
-
-        private bool TryInsertConstraint(Segment segment)
-        {
             if (segment.a == segment.b)
-                return true;
+                return;
 
             Edge edge = FindEdge(segment.a, segment.b);
-            if (edge.index != NO_INDEX)
+            if (edge.index != CDT.NO_INDEX)
             {
                 SetConstraint(edge.triangle, edge.index);
-                return true;
+                _constrainedEdges.Add(segment);
+                return;
             }
 
             Vec2 p1 = _v[segment.a], p2 = _v[segment.b];
@@ -1097,23 +1042,25 @@ namespace CDTSharp
                     int ib = tri.indices[CDTTriangle.NEXT[i]];
                     Vec2 q1 = _v[ia], q2 = _v[ib];
 
-                    if (GeometryHelper.Intersect(p1, p2, q1, q2, out _))
+                    if (GeometryHelper.Intersect(p1, p2, q1, q2, out Vec2 inter) && !quad.Contains(inter.x, inter.y))
                     {
                         if (!ConvexQuad(current, i))
                         {
-                            return false; // Can't flip, save for later
+                            quad.Insert(inter.x, inter.y);
+
+                            var (triIndex, edgeIndex) = FindContaining(inter);
+                            if (triIndex == CDT.NO_INDEX)
+                                throw new Exception("Could not locate triangle to insert Steiner point.");
+
+                            int inserted = Insert(inter, triIndex, edgeIndex);
+                            AddConstraint(new Segment(segment.a, inserted));
+                            AddConstraint(new Segment(inserted, segment.b));
+                            return;
                         }
 
-                        int twinIndex = tri.adjacent[i];
-                        if (twinIndex != NO_INDEX && _t[twinIndex].constraint[_t[twinIndex].IndexOf(ib, ia)])
-                        {
-                            return false; // Twin is constrained — forbidden flip
-                        }
-
-                        SetConstraint(current, i);
                         FlipEdge(current, i);
+                        SetConstraint(current, 0);
                         Legalize();
-
                         queue.Clear();
                         visited.Clear();
                         queue.Enqueue(current);
@@ -1123,20 +1070,21 @@ namespace CDTSharp
                 }
 
                 if (tri.IndexOf(segment.b) != NO_INDEX)
-                    return true;
+                {
+                    _constrainedEdges.Add(segment);
+                    return;
+                }
 
                 for (int i = 0; i < 3; i++)
                 {
                     int next = tri.adjacent[i];
-                    if (next != NO_INDEX && !visited.Contains(next))
+                    if (next != CDT.NO_INDEX && !visited.Contains(next))
                     {
                         queue.Enqueue(next);
                         visited.Add(next);
                     }
                 }
             }
-
-            return false;
         }
 
 
