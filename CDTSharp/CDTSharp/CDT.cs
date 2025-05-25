@@ -250,18 +250,13 @@ namespace CDTSharp
                     }
 
                     Vec2 mid = new Vec2(diam.x, diam.y);
-                    var (triIndex, edgeIndex) = FindContaining(mid, EPS);
-                    if (edgeIndex == NO_INDEX)
+                    Edge e = FindEdgeBrute(ia, ib);
+                    if (e.index == NO_INDEX)
                     {
-                        Edge e = FindEdge(triIndex, ia, ib);
-                        if (e.index == NO_INDEX)
-                        {
-                            throw new Exception($"Midpoint of segment ({ia},{ib}) not found on any edge.");
-                        }
-                        edgeIndex = e.index;
+                        throw new Exception($"Midpoint of segment ({ia},{ib}) not found on any edge.");
                     }
 
-                    int insertedIndex = Insert(mid, triIndex, edgeIndex);
+                    int insertedIndex = Insert(mid, e.triangle, e.index);
                     refinedCount++;
 
                     Segment s1 = new Segment(ia, insertedIndex);
@@ -390,7 +385,7 @@ namespace CDTSharp
             double dmax = Math.Max(rect.maxX - rect.minX, rect.maxY - rect.minY);
             double midx = (rect.maxX + rect.minX) * 0.5;
             double midy = (rect.maxY + rect.minY) * 0.5;
-            double scale = 10;
+            double scale = 2;
 
             Vec2 a = new Vec2(midx - scale * dmax, midy - scale * dmax);
             Vec2 b = new Vec2(midx, midy + scale * dmax);

@@ -29,6 +29,11 @@
         {
             CDTTriangle tri = _triangles[_current];
             int indexOfVertex = tri.IndexOf(_vertex);
+            if (indexOfVertex == -1)
+            {
+                return false;
+            }
+
             int next = tri.adjacent[CDTTriangle.PREV[indexOfVertex]];
             if (next == _start) return false;
             _current = next;
