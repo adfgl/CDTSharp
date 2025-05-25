@@ -768,12 +768,11 @@ namespace CDTSharp
                     int b = tri.indices[CDTTriangle.NEXT[i]];
                     if (a == aIndex || b == aIndex)
                     {
-                        if (Vec2.Cross(_v[a], _v[b], vb) <= 0)
+                        double orientation = predicates.Orient(_v[a], _v[b], vb);
+                        if (orientation <= 0)
                         {
                             toRightCount++;
                         }
-
-
                     }
                 }
 
@@ -812,13 +811,8 @@ namespace CDTSharp
                     Vec2 a = _v[tri.indices[i]];
                     Vec2 b = _v[tri.indices[CDTTriangle.NEXT[i]]];
 
-                    double cross = Vec2.Cross(a, b, point);
-                    if (Math.Abs(cross) < tolerance && GeometryHelper.OnSegment(a, b, point, tolerance))
-                    {
-                        return (current, i);
-                    }
-
-                    if (cross > tolerance)
+                    double orientation = predicates.Orient(a, b, point);
+                    if (orientation > 0)
                     {
                         current = tri.adjacent[i];
                         inside = false;
@@ -828,6 +822,16 @@ namespace CDTSharp
 
                 if (inside)
                 {
+                    CDTTriangle t = _t[current];
+                    for (int i = 0; i < 3; i++)
+                    {
+                        Vec2 a = _v[t.indices[i]];
+                        Vec2 b = _v[t.indices[CDTTriangle.NEXT[i]]];
+                        if (GeometryHelper.OnSegment(a, b, point, EPS))
+                        {
+                            return (current, i);
+                        }
+                    }
                     return (current, NO_INDEX);
                 }
             }
@@ -982,7 +986,9 @@ namespace CDTSharp
                 {
                     Vec2 q1 = _v[currentTri.indices[i]];
                     Vec2 q2 = _v[currentTri.indices[CDTTriangle.NEXT[i]]];
-                    if (Vec2.Cross(q1, q2, p2) > 0)
+
+                    double orient = predicates.Orient(q1, q2, p2);
+                    if (orient > 0)
                     {
                         current = currentTri.adjacent[i];
                         advanced = true;

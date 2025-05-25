@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -90,91 +91,121 @@ namespace CDTSharp
             return OrientAdaptive(a, b, c, detsum);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private double OrientAdaptive(Vec2 pa, Vec2 pb, Vec2 pc, double detsum)
         {
-            double acx, acy, bcx, bcy;
+            double acx = pa.x - pc.x, bcx = pb.x - pc.x;
+            double acy = pa.y - pc.y, bcy = pb.y - pc.y;
+
+            // Tail terms (rounding errors from high precision multiplication)
             double acxtail, acytail, bcxtail, bcytail;
-            double detleft, detright;
-            double detlefttail, detrighttail;
-            double det, errbound;
-            // Edited to work around index out of range exceptions (changed array length from 4 to 5).
-            // See unsafe indexing in FastExpansionSumZeroElim.
+
+            // Error expansions
             double[] B = new double[5], u = new double[5];
             double[] C1 = new double[8], C2 = new double[12], D = new double[16];
-            double B3;
-            int C1length, C2length, Dlength;
 
-            double u3;
-            double s1, t1;
-            double s0, t0;
+            // Compute high-precision determinant difference and its tail
+            double detleft = TwoProduct(acx, bcy, out double detlefttail);
+            double detright = TwoProduct(acy, bcx, out double detrighttail);
 
-            double bvirt;
-            double avirt, bround, around;
-            double c;
-            double abig;
-            double ahi, alo, bhi, blo;
-            double err1, err2, err3;
-            double _i, _j;
-            double _0;
+            double det = FastExpansionSum3(
+                detlefttail - detrighttail,
+                detleft,
+                -detright,
+                B);
 
-            acx = (double)(pa.x - pc.x);
-            bcx = (double)(pb.x - pc.x);
-            acy = (double)(pa.y - pc.y);
-            bcy = (double)(pb.y - pc.y);
-
-            detleft = (double)(acx * bcy); c = (double)(splitter * acx); abig = (double)(c - acx); ahi = c - abig; alo = acx - ahi; c = (double)(splitter * bcy); abig = (double)(c - bcy); bhi = c - abig; blo = bcy - bhi; err1 = detleft - (ahi * bhi); err2 = err1 - (alo * bhi); err3 = err2 - (ahi * blo); detlefttail = (alo * blo) - err3;
-            detright = (double)(acy * bcx); c = (double)(splitter * acy); abig = (double)(c - acy); ahi = c - abig; alo = acy - ahi; c = (double)(splitter * bcx); abig = (double)(c - bcx); bhi = c - abig; blo = bcx - bhi; err1 = detright - (ahi * bhi); err2 = err1 - (alo * bhi); err3 = err2 - (ahi * blo); detrighttail = (alo * blo) - err3;
-
-            _i = (double)(detlefttail - detrighttail); bvirt = (double)(detlefttail - _i); avirt = _i + bvirt; bround = bvirt - detrighttail; around = detlefttail - avirt; B[0] = around + bround; _j = (double)(detleft + _i); bvirt = (double)(_j - detleft); avirt = _j - bvirt; bround = _i - bvirt; around = detleft - avirt; _0 = around + bround; _i = (double)(_0 - detright); bvirt = (double)(_0 - _i); avirt = _i + bvirt; bround = bvirt - detright; around = _0 - avirt; B[1] = around + bround; B3 = (double)(_j + _i); bvirt = (double)(B3 - _j); avirt = B3 - bvirt; bround = _i - bvirt; around = _j - avirt; B[2] = around + bround;
-
-            B[3] = B3;
-
-            det = Estimate(4, B);
-            errbound = ccwerrboundB * detsum;
-            if ((det >= errbound) || (-det >= errbound))
-            {
+            if (Math.Abs(det) >= ccwerrboundB * detsum)
                 return det;
-            }
 
-            bvirt = (double)(pa.x - acx); avirt = acx + bvirt; bround = bvirt - pc.x; around = pa.x - avirt; acxtail = around + bround;
-            bvirt = (double)(pb.x - bcx); avirt = bcx + bvirt; bround = bvirt - pc.x; around = pb.x - avirt; bcxtail = around + bround;
-            bvirt = (double)(pa.y - acy); avirt = acy + bvirt; bround = bvirt - pc.y; around = pa.y - avirt; acytail = around + bround;
-            bvirt = (double)(pb.y - bcy); avirt = bcy + bvirt; bround = bvirt - pc.y; around = pb.y - avirt; bcytail = around + bround;
+            // Compute tail terms for coordinates
+            acxtail = Tail(pa.x, pc.x, acx);
+            bcxtail = Tail(pb.x, pc.x, bcx);
+            acytail = Tail(pa.y, pc.y, acy);
+            bcytail = Tail(pb.y, pc.y, bcy);
 
-            if ((acxtail == 0.0) && (acytail == 0.0)
-                && (bcxtail == 0.0) && (bcytail == 0.0))
-            {
+            if ((acxtail == 0.0 && acytail == 0.0) && (bcxtail == 0.0 && bcytail == 0.0))
                 return det;
-            }
 
-            errbound = ccwerrboundC * detsum + resulterrbound * ((det) >= 0.0 ? (det) : -(det));
-            det += (acx * bcytail + bcy * acxtail)
-                 - (acy * bcxtail + bcx * acytail);
-            if ((det >= errbound) || (-det >= errbound))
-            {
+            // Higher precision error bound check
+            double errbound = ccwerrboundC * detsum + resulterrbound * Math.Abs(det);
+            det += (acx * bcytail + bcy * acxtail) - (acy * bcxtail + bcx * acytail);
+
+            if (Math.Abs(det) >= errbound)
                 return det;
-            }
 
-            s1 = (double)(acxtail * bcy); c = (double)(splitter * acxtail); abig = (double)(c - acxtail); ahi = c - abig; alo = acxtail - ahi; c = (double)(splitter * bcy); abig = (double)(c - bcy); bhi = c - abig; blo = bcy - bhi; err1 = s1 - (ahi * bhi); err2 = err1 - (alo * bhi); err3 = err2 - (ahi * blo); s0 = (alo * blo) - err3;
-            t1 = (double)(acytail * bcx); c = (double)(splitter * acytail); abig = (double)(c - acytail); ahi = c - abig; alo = acytail - ahi; c = (double)(splitter * bcx); abig = (double)(c - bcx); bhi = c - abig; blo = bcx - bhi; err1 = t1 - (ahi * bhi); err2 = err1 - (alo * bhi); err3 = err2 - (ahi * blo); t0 = (alo * blo) - err3;
-            _i = (double)(s0 - t0); bvirt = (double)(s0 - _i); avirt = _i + bvirt; bround = bvirt - t0; around = s0 - avirt; u[0] = around + bround; _j = (double)(s1 + _i); bvirt = (double)(_j - s1); avirt = _j - bvirt; bround = _i - bvirt; around = s1 - avirt; _0 = around + bround; _i = (double)(_0 - t1); bvirt = (double)(_0 - _i); avirt = _i + bvirt; bround = bvirt - t1; around = _0 - avirt; u[1] = around + bround; u3 = (double)(_j + _i); bvirt = (double)(u3 - _j); avirt = u3 - bvirt; bround = _i - bvirt; around = _j - avirt; u[2] = around + bround;
-            u[3] = u3;
-            C1length = FastExpansionSumZeroElim(4, B, 4, u, C1);
+            // Final round of tail term products and summations
+            int len;
+            len = TailProductExpansion(acxtail, bcy, acytail, bcx, u);
+            int c1len = FastExpansionSumZeroElim(4, B, len, u, C1);
 
-            s1 = (double)(acx * bcytail); c = (double)(splitter * acx); abig = (double)(c - acx); ahi = c - abig; alo = acx - ahi; c = (double)(splitter * bcytail); abig = (double)(c - bcytail); bhi = c - abig; blo = bcytail - bhi; err1 = s1 - (ahi * bhi); err2 = err1 - (alo * bhi); err3 = err2 - (ahi * blo); s0 = (alo * blo) - err3;
-            t1 = (double)(acy * bcxtail); c = (double)(splitter * acy); abig = (double)(c - acy); ahi = c - abig; alo = acy - ahi; c = (double)(splitter * bcxtail); abig = (double)(c - bcxtail); bhi = c - abig; blo = bcxtail - bhi; err1 = t1 - (ahi * bhi); err2 = err1 - (alo * bhi); err3 = err2 - (ahi * blo); t0 = (alo * blo) - err3;
-            _i = (double)(s0 - t0); bvirt = (double)(s0 - _i); avirt = _i + bvirt; bround = bvirt - t0; around = s0 - avirt; u[0] = around + bround; _j = (double)(s1 + _i); bvirt = (double)(_j - s1); avirt = _j - bvirt; bround = _i - bvirt; around = s1 - avirt; _0 = around + bround; _i = (double)(_0 - t1); bvirt = (double)(_0 - _i); avirt = _i + bvirt; bround = bvirt - t1; around = _0 - avirt; u[1] = around + bround; u3 = (double)(_j + _i); bvirt = (double)(u3 - _j); avirt = u3 - bvirt; bround = _i - bvirt; around = _j - avirt; u[2] = around + bround;
-            u[3] = u3;
-            C2length = FastExpansionSumZeroElim(C1length, C1, 4, u, C2);
+            len = TailProductExpansion(acx, bcytail, acy, bcxtail, u);
+            int c2len = FastExpansionSumZeroElim(c1len, C1, len, u, C2);
 
-            s1 = (double)(acxtail * bcytail); c = (double)(splitter * acxtail); abig = (double)(c - acxtail); ahi = c - abig; alo = acxtail - ahi; c = (double)(splitter * bcytail); abig = (double)(c - bcytail); bhi = c - abig; blo = bcytail - bhi; err1 = s1 - (ahi * bhi); err2 = err1 - (alo * bhi); err3 = err2 - (ahi * blo); s0 = (alo * blo) - err3;
-            t1 = (double)(acytail * bcxtail); c = (double)(splitter * acytail); abig = (double)(c - acytail); ahi = c - abig; alo = acytail - ahi; c = (double)(splitter * bcxtail); abig = (double)(c - bcxtail); bhi = c - abig; blo = bcxtail - bhi; err1 = t1 - (ahi * bhi); err2 = err1 - (alo * bhi); err3 = err2 - (ahi * blo); t0 = (alo * blo) - err3;
-            _i = (double)(s0 - t0); bvirt = (double)(s0 - _i); avirt = _i + bvirt; bround = bvirt - t0; around = s0 - avirt; u[0] = around + bround; _j = (double)(s1 + _i); bvirt = (double)(_j - s1); avirt = _j - bvirt; bround = _i - bvirt; around = s1 - avirt; _0 = around + bround; _i = (double)(_0 - t1); bvirt = (double)(_0 - _i); avirt = _i + bvirt; bround = bvirt - t1; around = _0 - avirt; u[1] = around + bround; u3 = (double)(_j + _i); bvirt = (double)(u3 - _j); avirt = u3 - bvirt; bround = _i - bvirt; around = _j - avirt; u[2] = around + bround;
-            u[3] = u3;
-            Dlength = FastExpansionSumZeroElim(C2length, C2, 4, u, D);
+            len = TailProductExpansion(acxtail, bcytail, acytail, bcxtail, u);
+            int dlen = FastExpansionSumZeroElim(c2len, C2, len, u, D);
 
-            return (D[Dlength - 1]);
+            return D[dlen - 1];
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private double TwoProduct(double a, double b, out double tail)
+        {
+            double product = a * b;
+            Split(a, out double ahi, out double alo);
+            Split(b, out double bhi, out double blo);
+            double err1 = product - (ahi * bhi);
+            double err2 = err1 - (alo * bhi);
+            double err3 = err2 - (ahi * blo);
+            tail = (alo * blo) - err3;
+            return product;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void Split(double a, out double hi, out double lo)
+        {
+            double c = splitter * a;
+            double abig = c - a;
+            hi = c - abig;
+            lo = a - hi;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private double Tail(double a, double b, double ab)
+        {
+            double bvirt = a - ab;
+            double avirt = ab + bvirt;
+            double bround = bvirt - b;
+            double around = a - avirt;
+            return around + bround;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private double FastExpansionSum3(double e0, double e1, double e2, double[] result)
+        {
+            result[0] = e0;
+            result[1] = e1;
+            result[2] = e2;
+            double sum = e0 + e1 + e2;
+            result[3] = sum;
+            return Estimate(4, result);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private int TailProductExpansion(double a1, double b1, double a2, double b2, double[] result)
+        {
+            double p1 = TwoProduct(a1, b1, out double t1);
+            double p2 = TwoProduct(a2, b2, out double t2);
+            double i = t1 - t2;
+            double j = p1 + i;
+            double k = j - p2;
+            result[0] = i - (j - p1);
+            result[1] = k - (j - p2);
+            double sum = j + k;
+            result[2] = sum - j;
+            result[3] = sum;
+            return 4;
+        }
+
 
         private int FastExpansionSumZeroElim(int elen, double[] e, int flen, double[] f, double[] h)
         {
