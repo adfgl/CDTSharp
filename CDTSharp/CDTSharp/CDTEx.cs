@@ -47,7 +47,6 @@ namespace CDTSharp
             }
             else
             {
-                // Wireframe without fill, deduplicated
                 var drawn = new HashSet<(int, int)>();
                 sb.Append("<path d='");
                 foreach (var tri in cdt.Triangles)
@@ -71,14 +70,25 @@ namespace CDTSharp
 
             if (drawConstraints)
             {
+                var drawn = new HashSet<(int, int)>();
                 sb.Append("<path d='");
-                foreach (var (a, b) in cdt.Constraints)
+                foreach (var tri in cdt.Triangles)
                 {
-                    var va = cdt.Vertices[a - 3];
-                    var vb = cdt.Vertices[b - 3];
-                    var (x1, y1) = Project(va.x, va.y);
-                    var (x2, y2) = Project(vb.x, vb.y);
-                    sb.Append($"M{x1:F1},{y1:F1}L{x2:F1},{y2:F1}");
+                    for (int i = 0; i < 3; i++)
+                    {
+                        if (!tri.constraint[i]) continue;
+
+                        int a = tri.indices[i];
+                        int b = tri.indices[(i + 1) % 3];
+                        int lo = Math.Min(a, b), hi = Math.Max(a, b);
+                        if (!drawn.Add((lo, hi))) continue;
+
+                        var va = cdt.Vertices[a];
+                        var vb = cdt.Vertices[b];
+                        var (x1, y1) = Project(va.x, va.y);
+                        var (x2, y2) = Project(vb.x, vb.y);
+                        sb.Append($"M{x1:F1},{y1:F1}L{x2:F1},{y2:F1}");
+                    }
                 }
                 sb.Append("' fill='none' stroke='red' stroke-width='2.5'/>");
             }

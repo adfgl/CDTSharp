@@ -66,20 +66,24 @@ namespace CDTSharpConsole
         {
             CDTInput input = new CDTInput()
             {
-                Refine = false,
+                Refine = true,
                 KeepConvex = true,
                 KeepSuper = false,
                 MaxArea = 25,
                 Polygons = new List<CDTPolygon>()
                 {
-                    new CDTPolygon([new (95.6401, -150.9838), new (-21.7466, -123.1639), new (157.3868, 19.3286), new (91.5689, 44.4344), new (-181.881, 66.8261), new (124.1386, 177.4274), new (272.7379, 121.7875)]),
+                    //new CDTPolygon(StandardShapes.Circle(0, 0, 45, 16))
+                    new CDTPolygon([new Vec2(-152.171, -51.51),
+                new Vec2(-134.948, 159.616),
+                new Vec2(91.088, 166.264),
+                new Vec2(146.488, -43.152)]),
                 }
             };
 
 
             var cdt = new CDT();
                 cdt.Triangulate(input);
-            Console.WriteLine(cdt.ToSvg(fill: true, drawConstraints: true, drawCircles: false));
+            Console.WriteLine(cdt.ToSvg(fill: false, drawConstraints: true, drawCircles: false));
             //try
             //{
             //    cdt.Summary();
