@@ -106,6 +106,7 @@ namespace CDTSharp
             {
                 foreach ((Vec2 a, Vec2 b) in cdtPolygon.Constraints)
                 {
+
                     AddConstraint(constraints, a, b, EConstraint.User, eps);
                 }
             }

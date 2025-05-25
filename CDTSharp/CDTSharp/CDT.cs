@@ -77,6 +77,18 @@ namespace CDTSharp
             double expansionMargin = Math.Max(5, Math.Max(rect.dx, rect.dy) * 0.01);
             PointQuadtree quad = new PointQuadtree(rect.Expand(expansionMargin));
 
+            //foreach ((Polygon poly, Polygon[] holes) in processed.Polygons)
+            //{
+            //    foreach (var item in new List<Polygon>(holes) { poly })
+            //    {
+            //        foreach (var v in item.verts)
+            //        {
+            //            Insert(quad, v);
+            //        }
+            //    }
+
+            //}
+
             HashSet<Segment> seen = new HashSet<Segment>();
             foreach ((Vec2 a, Vec2 b) in processed.Constraints)
             {
@@ -105,6 +117,8 @@ namespace CDTSharp
                 {
                     _constrainedEdges.Add(s);
                     AddConstraint(ai, bi);
+                    Console.WriteLine(this.ToSvg());
+                    Console.WriteLine();
                 }
                    
             }
@@ -275,6 +289,14 @@ namespace CDTSharp
                             triangleQueue.Enqueue(item);
                         }
                     }
+
+                    //for (int i = 0; i < _t.Count; i++)
+                    //{
+                    //    if (IsBadTriangle(_t[i], maxArea))
+                    //    {
+                    //        triangleQueue.Enqueue(i);
+                    //    }
+                    //}
                     continue;
                 }
 
@@ -309,14 +331,18 @@ namespace CDTSharp
                     }
 
                     var (tIndex, eIndex) = FindContaining(cc, EPS);
-
-                    if (tIndex == NO_INDEX)
-                    {
-                        throw new Exception("Could not locate triangle for circumcenter.");
-                    }
+                    if (tIndex == NO_INDEX || _t[tIndex].parents.Count == 0) continue;
 
                     int vi = Insert(cc, tIndex, eIndex);
                     refinedCount++;
+
+                    //for (int i = 0; i < _t.Count; i++)
+                    //{
+                    //    if (IsBadTriangle(_t[i], maxArea))
+                    //    {
+                    //        triangleQueue.Enqueue(i);
+                    //    }
+                    //}
 
                     foreach (var item in _affected)
                     {
@@ -327,10 +353,6 @@ namespace CDTSharp
                     }
                 }
             }
-
-            Console.WriteLine("False check: " + falseCheck);
-            Console.WriteLine("Checked tris: " + checkedTris);
-            Console.WriteLine("Checked edges: " + checkedEdges);
             return refinedCount;
         }
 
@@ -677,12 +699,14 @@ namespace CDTSharp
                 if (!parents.Contains(p)) parents.Add(p);
             }
 
+            bool constraint = tri0.constraint[e20];
+
             double a0 = Area(v3, v1, v2);
             _t[t0] = new CDTTriangle(
                 new Circle(v3, v1, v2), a0,
                 i3, i1, i2,
                 t1, tri0.adjacent[e12], tri1.adjacent[e23],
-                false, tri0.constraint[e12], tri1.constraint[e23],
+                constraint, tri0.constraint[e12], tri1.constraint[e23],
                 parents);
 
             double a1 = tri0.area + tri1.area - a0;
@@ -690,7 +714,7 @@ namespace CDTSharp
                new Circle(v1, v3, v0), a1,
                i1, i3, i0,
                t0, tri1.adjacent[e30], tri0.adjacent[e01],
-               false, tri1.constraint[e30], tri0.constraint[e01],
+               constraint, tri1.constraint[e30], tri0.constraint[e01],
                parents);
 
             SetAdjacent(t0, 1);
@@ -781,6 +805,12 @@ namespace CDTSharp
             throw new Exception("Could not find entrance triangle.");
         }
 
+        void Panic()
+        {
+            FinalizeMesh();
+            Console.WriteLine(this.ToSvg(fill:false)); ;
+        }
+
         public (int triangleIndex, int edgeIndex) FindContaining(Vec2 point, double tolerance = 1e-12, int seed = NO_INDEX)
         {
             int max = _t.Count * 3;
@@ -791,6 +821,7 @@ namespace CDTSharp
             {
                 if (steps++ > max)
                 {
+                    Panic();
                     throw new Exception("Could not find containing triangle. Most likely mesh topology is invalid.");
                 }
 
@@ -940,63 +971,72 @@ namespace CDTSharp
 
         public void AddConstraint(int aIndex, int bIndex)
         {
-            if (aIndex == bIndex)
-            {
-                return;
-            }
+            if (aIndex == bIndex) return;
 
-            Edge edge = FindEdge( aIndex, bIndex);
+            Edge edge = FindEdge(aIndex, bIndex);
             if (edge.index != NO_INDEX)
             {
                 SetConstraint(edge.triangle, edge.index);
                 return;
             }
 
-            Vec2 p1 = _v[aIndex];
-            Vec2 p2 = _v[bIndex];
+            Vec2 p1 = _v[aIndex], p2 = _v[bIndex];
+            HashSet<int> visited = new();
+            Queue<int> queue = new();
 
-            int current = EntranceTriangle(edge.triangle, aIndex, bIndex);
-            while (true)
+            int start = EntranceTriangle(edge.triangle, aIndex, bIndex);
+            queue.Enqueue(start);
+            visited.Add(start);
+
+            while (queue.Count > 0)
             {
-                CDTTriangle currentTri = _t[current];
+                int current = queue.Dequeue();
+                CDTTriangle tri = _t[current];
+
                 for (int i = 0; i < 3; i++)
                 {
-                    if (currentTri.constraint[i]) continue;
+                    if (tri.constraint[i]) continue;
 
-                    int a = currentTri.indices[i];
-                    int b = currentTri.indices[CDTTriangle.NEXT[i]];
-                    if (GeometryHelper.Intersect(p1, p2, _v[a], _v[b], out _))
+                    int ia = tri.indices[i];
+                    int ib = tri.indices[CDTTriangle.NEXT[i]];
+                    Vec2 q1 = _v[ia], q2 = _v[ib];
+
+                    if (GeometryHelper.Intersect(p1, p2, q1, q2, out _))
                     {
+                        SetConstraint(current, i);
                         FlipEdge(current, i);
-                        SetConstraint(current, _t[current].IndexOfInvariant(a, b));
                         Legalize();
-                    }
-                }
 
-                if (currentTri.IndexOf(bIndex) != NO_INDEX)
-                    break;
-
-                bool advanced = false;
-                for (int i = 0; i < 3; i++)
-                {
-                    Vec2 q1 = _v[currentTri.indices[i]];
-                    Vec2 q2 = _v[currentTri.indices[CDTTriangle.NEXT[i]]];
-
-                    double orient = predicates.Orient(q1, q2, p2);
-                    if (orient > 0)
-                    {
-                        current = currentTri.adjacent[i];
-                        advanced = true;
+                        queue.Clear();
+                        visited.Clear();
+                        queue.Enqueue(current);
+                        visited.Add(current);
                         break;
                     }
                 }
 
-                if (!advanced)
+                if (tri.IndexOf(bIndex) != NO_INDEX)
+                    break;
+
+                for (int i = 0; i < 3; i++)
                 {
-                    throw new Exception("Failed to advance triangle march — possibly bad mesh topology.");
+                    int next = tri.adjacent[i];
+                    if (next != NO_INDEX && !visited.Contains(next))
+                    {
+                        int ia = tri.indices[i];
+                        int ib = tri.indices[CDTTriangle.NEXT[i]];
+                        Vec2 q1 = _v[ia], q2 = _v[ib];
+                        double orient = predicates.Orient(q1, q2, p2);
+                        if (orient >= 0)
+                        {
+                            queue.Enqueue(next);
+                            visited.Add(next);
+                        }
+                    }
                 }
             }
         }
+
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static double Angle(Vec2 a, Vec2 b, Vec2 c)

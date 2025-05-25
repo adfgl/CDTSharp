@@ -66,13 +66,13 @@ namespace CDTSharpConsole
         {
             CDTInput input = new CDTInput()
             {
-                Refine = true,
+                Refine = false,
                 KeepConvex = false,
                 KeepSuper = false,
                 MaxArea = 25,
                 Polygons = new List<CDTPolygon>()
                 {
-                    new CDTPolygon([new (204.79475173652122, 54.536188290213886), new (-84.00071058315325, 44.2220646359398), new (-218.87771221596824, -124.77088446870488), new (-160.16654679933112, 150.5368776876881)]),
+                    new CDTPolygon([new (66.6621, -162.5129), new (-33.351, -20.41), new (1.71, 60.572), new (214.142, 79.9197), new (245.4562, -22.104), new (138.8868, 51.1308)]),
                 }
             };
 
