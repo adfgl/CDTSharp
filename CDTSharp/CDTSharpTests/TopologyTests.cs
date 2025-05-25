@@ -1,4 +1,5 @@
 ﻿using CDTSharp;
+using System.Diagnostics;
 using Xunit.Sdk;
 
 namespace CDTSharpTests
@@ -69,6 +70,7 @@ namespace CDTSharpTests
         public void FindContaining_CorrecltlyFindsTriangleWhenPointOnEdge()
         {
             CDT cdt = TestCase();
+
             for (int i = 0; i < cdt.Triangles.Count; i++)
             {
                 CDTTriangle tri = cdt.Triangles[i];
@@ -76,8 +78,8 @@ namespace CDTSharpTests
                 {
                     int a = tri.indices[j];
                     int b = tri.indices[(j + 1) % 3];
-                    Edge expectedA = cdt.FindEdge(a, b);
-                    Edge expectedB = cdt.FindEdge(b, a);
+                    Edge expectedA = cdt.FindEdgeBrute(a, b);
+                    Edge expectedB = cdt.FindEdgeBrute(b, a);
 
                     Vec2 va = cdt.Vertices[a];
                     Vec2 vb = cdt.Vertices[b];

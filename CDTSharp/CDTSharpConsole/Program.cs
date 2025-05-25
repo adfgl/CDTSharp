@@ -69,22 +69,28 @@ namespace CDTSharpConsole
                 Refine = true,
                 KeepConvex = false,
                 KeepSuper = false,
-                MaxArea = 5,
+                MaxArea = 25,
                 Polygons = new List<CDTPolygon>()
                 {
-                    new CDTPolygon(StandardShapes.Circle(0, 0, 100, 36)),
-                       new CDTPolygon(StandardShapes.Circle(0, 50, 100, 36)),
-                              new CDTPolygon(StandardShapes.Circle(50, 50, 100, 36)),
+                    new CDTPolygon([new (47.359044818499854, -91.11013087231115), new (-33.351, -20.41), new (1.71, 60.572)]),
                 }
             };
 
 
             var cdt = new CDT();
+            try
+            {
+                cdt.Triangulate(input);
+                cdt.Summary();
+                Console.WriteLine(cdt.ToSvg(fill: false, drawConstraints: true, drawCircles: false));
+            }
+            catch (Exception)
+            {
+                cdt.FinalizeMesh();
+                Console.WriteLine(cdt.ToSvg());
+            }
+
             cdt.Triangulate(input);
-
-            cdt.Summary();
-
-            Console.WriteLine(cdt.ToSvg(fill: false, drawConstraints: true, drawCircles: false));
         }
 
 

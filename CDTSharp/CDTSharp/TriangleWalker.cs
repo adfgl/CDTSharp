@@ -28,7 +28,8 @@
         public bool MoveNextCW()
         {
             CDTTriangle tri = _triangles[_current];
-            int next = tri.adjacent[CDTTriangle.PREV[tri.IndexOf(_vertex)]];
+            int indexOfVertex = tri.IndexOf(_vertex);
+            int next = tri.adjacent[CDTTriangle.PREV[indexOfVertex]];
             if (next == _start) return false;
             _current = next;
             return true;

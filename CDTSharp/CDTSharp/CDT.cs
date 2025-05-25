@@ -11,6 +11,8 @@ namespace CDTSharp
         public const double EPS = 1e-12;
         public const int NO_INDEX = -1;
 
+        readonly RobustPredicates predicates = new RobustPredicates();
+
         readonly List<Vec2> _v = new List<Vec2>();
         readonly List<CDTTriangle> _t = new List<CDTTriangle>();
         readonly List<int> _affected = new List<int>();
@@ -83,11 +85,19 @@ namespace CDTSharp
                 {
                     ai = Insert(quad, a);
                 }
+                else
+                {
+                    ai += 3;
+                }
 
                 int bi = quad.IndexOf(b.x, b.y);
                 if (bi == NO_INDEX)
                 {
                     bi = Insert(quad, b);
+                }
+                else
+                {
+                    bi += 3;
                 }
 
                 var s = new Segment(ai, bi);
@@ -762,6 +772,8 @@ namespace CDTSharp
                         {
                             toRightCount++;
                         }
+
+
                     }
                 }
 
@@ -887,7 +899,21 @@ namespace CDTSharp
             }
             while (walker.MoveNextCW());
 
+            walker = new TriangleWalker(_t, triangle, end);
             return new Edge(triangle, NO_INDEX);
+        }
+
+        public Edge FindEdgeBrute(int aIndex, int bIndex)
+        {
+            for (int i = 0; i < _t.Count; i++)
+            {
+                int edge = _t[i].IndexOf(aIndex, bIndex);
+                if (edge != NO_INDEX)
+                {
+                    return new Edge(i, edge);
+                }
+            }
+            return new Edge(NO_INDEX, NO_INDEX);
         }
 
         public Edge FindEdge(int aIndex, int bIndex)
@@ -920,18 +946,17 @@ namespace CDTSharp
                 return;
             }
 
-            Edge edge = FindEdge(aIndex, bIndex);
-            int triangle = edge.triangle;
+            Edge edge = FindEdge( aIndex, bIndex);
             if (edge.index != NO_INDEX)
             {
-                SetConstraint(triangle, edge.index);
+                SetConstraint(edge.triangle, edge.index);
                 return;
             }
 
             Vec2 p1 = _v[aIndex];
             Vec2 p2 = _v[bIndex];
 
-            int current = EntranceTriangle(triangle, aIndex, bIndex);
+            int current = EntranceTriangle(edge.triangle, aIndex, bIndex);
             while (true)
             {
                 CDTTriangle currentTri = _t[current];
@@ -990,7 +1015,9 @@ namespace CDTSharp
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static double Area(Vec2 a, Vec2 b, Vec2 c)
         {
-            return -Vec2.Cross(a, b, c) * 0.5;
+            return Math.Abs(Vec2.Cross(a, b, c)) * 0.5;
         }
     }
+
+
 }
