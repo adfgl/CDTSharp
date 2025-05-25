@@ -1,10 +1,9 @@
 namespace CDTSharp
 {
     using System;
-    using System.Runtime.CompilerServices;
     using static CDT;
 
-    public struct CDTTriangle
+    public readonly struct CDTTriangle
     {
         public readonly static int[] NEXT = [1, 2, 0], PREV = [2, 0, 1];
 
@@ -74,5 +73,7 @@ namespace CDTSharp
 
             return $"{(super ? "[super] " : "")} {String.Join(' ', indices.Select(i => i))} ({s})";
         }
+
+     
     }
 }

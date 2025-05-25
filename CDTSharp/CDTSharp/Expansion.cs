@@ -37,6 +37,17 @@ namespace CDTSharp
 
         // ----------------- Core Arithmetic Logic ------------------
 
+        public int Sign()
+        {
+            // Walk components from most to least significant
+            for (int i = _components.Length - 1; i >= 0; i--)
+            {
+                if (_components[i] > 0) return 1;
+                if (_components[i] < 0) return -1;
+            }
+            return 0;
+        }
+
         /// <summary>
         /// Adds two expansions and returns a new high-precision result.
         /// </summary>
@@ -46,6 +57,7 @@ namespace CDTSharp
             int length = SumWithElimination(left._components, right._components, result);
             return new Expansion(result.Take(length).ToArray());
         }
+
 
         /// <summary>
         /// Multiplies an expansion by a scalar.
