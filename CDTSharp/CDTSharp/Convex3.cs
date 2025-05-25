@@ -1,15 +1,17 @@
-﻿using System.Runtime.CompilerServices;
+﻿using System.Drawing;
+using System.Linq;
+using System.Numerics;
+using System.Runtime.CompilerServices;
+using System.Text;
 
 namespace CDTSharp
 {
-   
     public class Convex3
     {
         public const int NO_INDEX = -1;
 
         double _minX, _minY, _minZ, _maxX, _maxY, _maxZ;
         readonly List<Face> _faces = new List<Face>();
-        readonly List<Vec3> _vertices = new List<Vec3>();
 
         public Convex3(IEnumerable<Vec3> points)
         {
@@ -17,34 +19,29 @@ namespace CDTSharp
 
             _minX = _minY = _minZ = double.MaxValue;
             _maxX = _maxY = _maxZ = double.MinValue;
-
             int[] tetra = InitialHull(vts);
             Array.Sort(tetra);
             Array.Reverse(tetra);
 
-            foreach (int i in tetra)
+            Vertex[] verts = new Vertex[4];
+            for (int i = 0; i < 4; i++)
             {
-                Vec3 v = vts[i];
+                int index = tetra[i];
+                Vec3 v = vts[index];
                 Expand(v.x, v.y, v.z);
-                vts.RemoveAt(i);
-                _vertices.Add(v);
+                vts.RemoveAt(index);
+                verts[i] = new Vertex(v);
             }
 
-            List<HorizonEdge> horizon = new List<HorizonEdge>();
-            for (int i = 2; i >= 0; i--)
+            Face tetraBase = BuildFace(verts[0], verts[1], verts[2]);
+            if (SignedDistance(tetraBase.Normal, tetraBase.DistanceToOrigin, verts[3].Position) > 0)
             {
-                horizon.Add(new HorizonEdge(0, i));
+                tetraBase = BuildFace(verts[2], verts[1], verts[0]);
             }
 
-            Face tetraBase = BuildFace(0, 1, 2);
-            if (SignedDistance(tetraBase.normal, tetraBase.distanceToOrigin, _vertices[3]) > 0)
-            {
-                tetraBase = BuildFace(2, 1, 0);
-            }
             _faces.Add(tetraBase);
 
-            BuildNewFaces(3, horizon);
-
+            BuildNewFaces(verts[3], tetraBase.Backward().ToList());
             for (int i = 0; i < vts.Count; i++)
             {
                 var (x, y, z) = vts[i];
@@ -53,7 +50,6 @@ namespace CDTSharp
         }
 
         public IReadOnlyList<Face> Faces => _faces;
-        public List<Vec3> Vertices => _vertices;
 
         public double MinX => _minX;
         public double MinY => _minY;
@@ -61,6 +57,36 @@ namespace CDTSharp
         public double MaxX => _maxX;
         public double MaxY => _maxY;
         public double MaxZ => _maxZ;
+
+        public string AsObj()
+        {
+            StringBuilder sb = new StringBuilder();
+
+            List<Vertex> vertices = new List<Vertex>();
+            HashSet<Vertex> seen = new HashSet<Vertex>();
+            foreach (var face in _faces)
+            {
+                foreach (var item in face.Forward())
+                {
+                    if (seen.Add(item.Origin))
+                    {
+                        vertices.Add(item.Origin);
+                        Vec3 v = item.Origin.Position;
+                        sb.AppendLine($"v {v.x} {v.y} {v.z}");
+                    }
+                }
+            }
+            foreach (var face in _faces)
+            {
+                int a = vertices.IndexOf(face.Edge.Origin) + 1;
+                int b = vertices.IndexOf(face.Edge.Next.Origin) + 1;
+                int c = vertices.IndexOf(face.Edge.Prev.Origin) + 1;
+                sb.AppendLine($"f {a} {b} {c}");
+            }
+            string content = sb.ToString();
+            File.WriteAllText(@"C:\Users\zhukopav\Documents\demoCVX.obj", content);
+            return content;
+        }
 
         int[] InitialHull(IList<Vec3> points)
         {
@@ -148,186 +174,140 @@ namespace CDTSharp
         public bool AddPoint(double x, double y, double z)
         {
             Vec3 point = new Vec3(x, y, z);
-            int remainingCount = RemoveVisibleFaces(point);
-            if (remainingCount == _faces.Count)
+            if (RemoveVisibleFaces(point) == 0)
             {
                 return false;
             }
 
-            _faces.RemoveRange(remainingCount, _faces.Count - remainingCount);
-
-            _vertices.Add(point);
             Expand(x, y, z);
-
-            List<HorizonEdge> horizon = BuildHorizon();
-            BuildNewFaces(_vertices.Count - 1, horizon);
+            BuildNewFaces(new Vertex(point), BuildHorizon());
             return true;
         }
 
-        void BuildNewFaces(int point, List<HorizonEdge> horizon)
+        void BuildNewFaces(Vertex vertex, List<HalfEdge> horizon)
         {
-            int firstFace = NO_INDEX;
-            int previousFace = NO_INDEX;
+            Face firstFace = null!;
+            Face lastFace = null!;
             for (int i = 0; i < horizon.Count; i++)
             {
-                (int faceIndex, int edgeIndex) = horizon[i];
+                HalfEdge edge = horizon[i];
+                Face face = BuildFace(edge.Next.Origin, edge.Origin, vertex);
+                _faces.Add(face);
 
-                Face face = _faces[faceIndex];
-
-                int ai = face.indices[Face.NEXT[edgeIndex]];
-                int bi = face.indices[edgeIndex];
-                int ci = point;
-
-                Face newFace = BuildFace(ai, bi, ci);
-                int newFaceIndex = _faces.Count;
-                _faces.Add(newFace);
-
-                face.adjacent[edgeIndex] = newFaceIndex;
-                newFace.adjacent[0] = faceIndex;
-
-                if (previousFace != NO_INDEX)
+                SetTwin(face.Edge, edge);
+                if (lastFace != null)
                 {
-                    _faces[previousFace].adjacent[2] = newFaceIndex; 
-                    newFace.adjacent[1] = previousFace;
+                    SetTwin(face.Edge.Prev, lastFace.Edge.Next);
                 }
                 else
                 {
-                    firstFace = newFaceIndex;
+                    firstFace = face;
                 }
-                previousFace = newFaceIndex;
+                lastFace = face;
             }
-
-            _faces[previousFace].adjacent[2] = firstFace;
-            _faces[firstFace].adjacent[1] = previousFace;
+            SetTwin(firstFace.Edge.Prev, lastFace.Edge.Next);
         }
 
-        Face BuildFace(int a, int b, int c)
+        Face BuildFace(Vertex a, Vertex b, Vertex c)
         {
-            Vec3 va = _vertices[a];
-            Vec3 vb = _vertices[b];
-            Vec3 vc = _vertices[c];
+            Vec3 normal = Vec3.Cross(b.Position - a.Position, c.Position - a.Position).Normalize();
 
-            Vec3 normal = Vec3.Cross(vb - va, vc - va).Normalize();
-            double distanceToOrigin = Vec3.Dot(normal, va);
-            return new Face(a, b, c, normal, distanceToOrigin);
-        }
-
-        List<HorizonEdge> BuildHorizon()
-        {
-            List<HorizonEdge> horizonEdges = new List<HorizonEdge>();
-            HorizonEdge start = HorizonStart();
-
-            HorizonEdge current = start;
-            do
+            Face face = new Face()
             {
-                horizonEdges.Add(current);
-                current = GetNextHorizonEdge(current);
+                Normal = normal,
+                DistanceToOrigin = Vec3.Dot(normal, a.Position)
+            };
 
-            } while (!start.Equals(current));
-            return horizonEdges;
+            HalfEdge ab = new HalfEdge(a) { Face = face };
+            HalfEdge bc = new HalfEdge(b) { Face = face };
+            HalfEdge ca = new HalfEdge(c) { Face = face };
+
+            face.Edge = ab;
+
+            ab.Next = bc; ab.Prev = ca;
+            bc.Next = ca; bc.Prev = ab;
+            ca.Next = ab; ca.Prev = bc;
+
+            return face;
         }
 
-        HorizonEdge GetNextHorizonEdge(HorizonEdge current)
+        static void SetTwin(HalfEdge edge, HalfEdge twin)
         {
-            int prevEdge = Face.PREV[current.index];
-            int adjFace = _faces[current.face].adjacent[prevEdge];
-            while (true)
+            edge.Twin = twin;
+            twin.Twin = edge;
+        }
+
+        List<HalfEdge> BuildHorizon()
+        {
+            HalfEdge? horizonStart = null;
+            foreach (Face face in _faces)
             {
-                if (adjFace == NO_INDEX)
+                if (horizonStart is not null)
                 {
-                    Face adj = _faces[current.face];
-                    return new HorizonEdge(current.face, prevEdge);
+                    break;
                 }
 
-                Face next = _faces[adjFace];
-
-                int backEdge = next.IndexOf(current.face);
-                if (backEdge == NO_INDEX)
-                    throw new Exception("Non-manifold edge or invalid mesh linkage");
-
-                prevEdge = Face.PREV[backEdge];
-                adjFace = next.adjacent[prevEdge];
-
-                current = new HorizonEdge(adjFace, prevEdge);
-            }
-        }
-
-        readonly struct HorizonEdge : IEquatable<HorizonEdge>
-        {
-            public readonly int face, index;
-
-            public HorizonEdge(int face, int edge)
-            {
-                this.face = face;
-                this.index = edge;
-            }
-
-            public void Deconstruct(out int face, out int edge)
-            {
-                face = this.face;
-                edge = this.index;
-            }
-
-            public bool Equals(HorizonEdge other)
-            {
-                return face == other.face && index == other.index;
-            }
-        }
-
-        HorizonEdge HorizonStart()
-        {
-            for (int i = 0; i < _faces.Count; i++)
-            {
-                var face = _faces[i];
-                for (int j = 0; j < 3; j++)
+                foreach (HalfEdge e in face.Forward())
                 {
-                    if (face.adjacent[j] == NO_INDEX)
+                    if (e.Twin is null)
                     {
-                        return new HorizonEdge(i, j);
+                        horizonStart = e;
+                        break;
                     }
                 }
             }
-            throw new Exception("Failed to locate start of horizon.");
+
+            if (horizonStart is null)
+            {
+                throw new Exception("LOGIC ERROR: Horizon start not found.");
+            }
+
+            List<HalfEdge> horizonEdges = new List<HalfEdge>();
+            HalfEdge he = horizonStart;
+            do
+            {
+                horizonEdges.Add(he);
+                he = GetNextHorizonEdge(he);
+            } while (he != horizonStart);
+            return horizonEdges;
+        }
+
+        static HalfEdge GetNextHorizonEdge(HalfEdge he)
+        {
+            HalfEdge current = he.Prev;
+            while (true)
+            {
+                if (current.Twin is null)
+                {
+                    return current;
+                }
+                current = current.Twin.Prev;
+            }
         }
 
         int RemoveVisibleFaces(Vec3 p)
         {
-            int write = 0;
-            for (int read = 0; read < _faces.Count; read++)
+            int removed = 0;
+            for (int i = _faces.Count - 1; i >= 0; i--)
             {
-                Face face = _faces[read];
-                if (Orientation(face.normal, face.distanceToOrigin, p) == 1)
+                Face face = _faces[i];
+                if (Orientation(face.Normal, face.DistanceToOrigin, p) == 1)
                 {
-                    MarkRemoved(read);
-                    continue;
-                }
-
-                if (write != read)
-                {
-                    _faces[write] = _faces[read];
-                }
-                write++;
+                    foreach (HalfEdge he in face.Forward())
+                    {
+                        he.Origin = null;
+                        he.Face = null;
+                        if (he.Twin is not null)
+                        {
+                            he.Twin.Twin = null;
+                            he.Twin = null;
+                        }
+                    }
+                    _faces.RemoveAt(i);
+                    removed++;
+                }   
             }
-            return write;
-        }
-
-        void MarkRemoved(int index)
-        {
-            Face face = _faces[index];
-            for (int i = 0; i < 3; i++)
-            {
-                int adjIndex = face.adjacent[i];
-                if (adjIndex == NO_INDEX) continue;
-
-                int start = face.indices[i];
-                int end = face.indices[Face.NEXT[i]];
-
-                Face adjFace = _faces[adjIndex];
-                int edge = adjFace.IndexOf(end, start);
-                adjFace.adjacent[edge] = NO_INDEX;
-
-                face.adjacent[i] = NO_INDEX;
-            }
+            return removed;
         }
 
         public static double SignedDistance(Vec3 planeNormal, double distanceToOrigin, Vec3 point)
@@ -337,10 +317,11 @@ namespace CDTSharp
 
         public static Expansion SignedDistanceExact(Vec3 planeNormal, double distanceToOrigin, Vec3 point)
         {
-            Expansion dot = new Expansion(planeNormal.x) * point.x
-                        + new Expansion(planeNormal.y) * point.y
-                        + new Expansion(planeNormal.z) * point.z;
+            Expansion dx = Expansion.Multiply(planeNormal.x, point.x);
+            Expansion dy = Expansion.Multiply(planeNormal.y, point.y);
+            Expansion dz = Expansion.Multiply(planeNormal.z, point.z);
 
+            Expansion dot = Expansion.Add(dx, Expansion.Add(dy, dz));
             return dot - new Expansion(distanceToOrigin);
         }
 
@@ -355,13 +336,12 @@ namespace CDTSharp
         {
             double maxAbs = Math.Max(Math.Abs(planeNormal.x * point.x),
                              Math.Max(Math.Abs(planeNormal.y * point.y),
-                                      Math.Abs(planeNormal.z * point.z)));
+                                    Math.Abs(planeNormal.z * point.z)));
 
             double bound = ExpansionConstants.Resulterrbound * maxAbs;
             double signedDistance = SignedDistance(planeNormal, distanceToOrigin, point);
             if (Math.Abs(signedDistance) > bound)
             {
-                // Fast-path result is numerically safe
                 return Math.Sign(signedDistance);
             }
 
@@ -377,46 +357,58 @@ namespace CDTSharp
 
             return dot - new Expansion(distanceToOrigin);
         }
-
-      
-
     }
 
-    public readonly struct Face 
+    public class Vertex
     {
-        public readonly static int[] NEXT = [1, 2, 0], PREV = [2, 0, 1];
-
-        public readonly int[] indices, adjacent;
-        public readonly Vec3 normal;
-        public readonly double distanceToOrigin;
-
-        public Face(int a, int b, int c, Vec3 normal, double distanceToOrigin)
+        public Vertex(Vec3 position) 
         {
-            this.normal = normal.Normalize();
-            this.distanceToOrigin = distanceToOrigin;
-            this.indices = [a, b, c];
-            this.adjacent = [Convex3.NO_INDEX, Convex3.NO_INDEX, Convex3.NO_INDEX];
+            Position = position;
         }
 
-        public int IndexOf(int v)
+        public Vec3 Position { get; set; }
+    }
+
+    public class HalfEdge
+    {
+        public HalfEdge(Vertex origin)
         {
-            for (int i = 0; i < 3; i++)
-            {
-                if (indices[i] == v) return i;
-            }
-            return Convex3.NO_INDEX;
+            Origin = origin;
         }
 
-        public int IndexOf(int from, int to)
+        public Vertex Origin { get; set; }
+        public Face Face { get; set; } = null!;
+        public HalfEdge? Twin { get; set; } = null;
+        public HalfEdge Next { get; set; } = null!;
+        public HalfEdge Prev { get; set; } = null!;
+    }
+
+    public class Face
+    {
+        public HalfEdge Edge { get; set; } = null!;
+        public Vec3 Normal { get; set; }
+        public double DistanceToOrigin { get; set; }
+
+        public IEnumerable<HalfEdge> Forward()
         {
-            for (int i = 0; i < 3; i++)
+            HalfEdge he = Edge;
+            HalfEdge current = he;
+            do
             {
-                if (indices[i] == from && indices[NEXT[i]] == to)
-                {
-                    return i;
-                }
-            }
-            return Convex3.NO_INDEX;
+                yield return current;
+                current = current.Next;
+            } while (current != he);
+        }
+
+        public IEnumerable<HalfEdge> Backward()
+        {
+            HalfEdge he = Edge;
+            HalfEdge current = he;
+            do
+            {
+                yield return current;
+                current = current.Prev;
+            } while (current != he);
         }
     }
 }

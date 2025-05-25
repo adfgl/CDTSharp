@@ -6,76 +6,16 @@ namespace CDTSharpConsole
 {
     // https://www.svgviewer.dev/
 
-    public static class PreciseMath
-    {
-        public static double[] TwoDivide(double a, double b)
-        {
-            double q0 = a / b;
-
-            double product = TwoProduct(q0, b, out double productError);
-
-            double delta = a - product;
-            double q1 = (delta - productError) / b;
-
-            return new[] { q0, q1 };
-        }
-
-        public static double TwoSum(double a, double b, out double err)
-        {
-            double sum = a + b;
-            double bVirtual = sum - a;
-            double aVirtual = sum - bVirtual;
-            double bRoundoff = b - bVirtual;
-            double aRoundoff = a - aVirtual;
-            err = aRoundoff + bRoundoff;
-            return sum;
-        }
-
-        public static double TwoProduct(double a, double b, out double err)
-        {
-            double product = a * b;
-
-            Split(a, out double aHigh, out double aLow);
-            Split(b, out double bHigh, out double bLow);
-
-            double err1 = product - (aHigh * bHigh);
-            double err2 = err1 - (aLow * bHigh);
-            double err3 = err2 - (aHigh * bLow);
-            err = (aLow * bLow) - err3;
-            return product;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]  
-        public static void Split(double a, out double high, out double low)
-        {
-            const double splitter = (1 << 27) + 1; // = 2^27 + 1 = 134217729
-
-            double c = splitter * a;
-            double abig = c - a;
-            high = c - abig;
-            low = a - high;
-        }
-    }
-
+   
     internal class Program
     {
 
         static void Main(string[] args)
         {
-            double a = 1e16;
-            double b = 1.0;
+            List<Vec3> cubePoints = GenerateCubePoints(-1, 1);
+            Convex3 cubeHull = new Convex3(cubePoints);
 
-            double c = a + b;
-            Console.WriteLine(c);
-
-            double ab = PreciseMath.TwoSum(a, b, out double err);
-            double abc = PreciseMath.TwoSum(ab, 32, out double err1);
-            Console.WriteLine(abc);
-            Console.WriteLine(err + err1);
-
-
-            Console.WriteLine();
-            Console.WriteLine(err);
+            Console.WriteLine(cubeHull.AsObj());
 
             //CDTInput input = new CDTInput()
             //{
@@ -108,6 +48,21 @@ namespace CDTSharpConsole
             //    Console.WriteLine(cdt.ToSvg());
             //}
 
+        }
+
+        public static List<Vec3> GenerateCubePoints(double min = -1, double max = 1)
+        {
+            return new List<Vec3>
+    {
+        new Vec3(min, min, min),
+        new Vec3(max, min, min),
+        new Vec3(max, max, min),
+        new Vec3(min, max, min),
+        new Vec3(min, min, max),
+        new Vec3(max, min, max),
+        new Vec3(max, max, max),
+        new Vec3(min, max, max)
+    };
         }
 
         public class Cone

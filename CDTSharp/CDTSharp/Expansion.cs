@@ -202,18 +202,28 @@ namespace CDTSharp
         public static int SumWithElimination(double[] a, double[] b, double[] output)
         {
             int aIndex = 0, bIndex = 0, outputIndex = 0;
+            bool nonzero = false;
+
+            if (a.Length == 0 && b.Length == 0)
+            {
+                output[0] = 0.0;
+                return 1;
+            }
+
             double current, newSum, error;
             double aNow = a[aIndex], bNow = b[bIndex];
 
             if ((bNow > aNow) == (bNow > -aNow))
             {
                 current = aNow;
-                aNow = a[++aIndex];
+                aIndex++;
+                if (aIndex < a.Length) aNow = a[aIndex];
             }
             else
             {
                 current = bNow;
-                bNow = b[++bIndex];
+                bIndex++;
+                if (bIndex < b.Length) bNow = b[bIndex];
             }
 
             while (aIndex < a.Length && bIndex < b.Length)
@@ -229,28 +239,42 @@ namespace CDTSharp
                     bNow = b[++bIndex];
                 }
 
+                if (error != 0.0)
+                {
+                    output[outputIndex++] = error;
+                    nonzero = true;
+                }
+
                 current = newSum;
-                if (error != 0.0) output[outputIndex++] = error;
             }
 
             while (aIndex < a.Length)
             {
                 TwoSum(current, a[aIndex++], out newSum, out error);
+                if (error != 0.0)
+                {
+                    output[outputIndex++] = error;
+                    nonzero = true;
+                }
                 current = newSum;
-                if (error != 0.0) output[outputIndex++] = error;
             }
 
             while (bIndex < b.Length)
             {
                 TwoSum(current, b[bIndex++], out newSum, out error);
+                if (error != 0.0)
+                {
+                    output[outputIndex++] = error;
+                    nonzero = true;
+                }
                 current = newSum;
-                if (error != 0.0) output[outputIndex++] = error;
             }
 
-            if (current != 0.0 || outputIndex == 0)
+            if (current != 0.0 || !nonzero)
                 output[outputIndex++] = current;
 
             return outputIndex;
         }
+
     }
 }
