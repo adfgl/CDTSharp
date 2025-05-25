@@ -3,7 +3,6 @@
     public class CDTInput
     {
         public double MaxArea { get; set; } = double.MaxValue;
-        public double MinAngle { get; set; } = double.MinValue;
         public bool Refine { get; set; } = false;
         public bool KeepConvex { get; set; } = false;
         public bool KeepSuper { get; set; } = true;

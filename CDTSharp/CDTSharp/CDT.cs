@@ -17,51 +17,77 @@ namespace CDTSharp
         readonly Stack<Edge> _toLegalize = new Stack<Edge>();
         readonly List<Segment> _constrainedEdges = new List<Segment>();
 
-        PointQuadtree _quad;
+        public void Summary()
+        {
+            double minArea = double.MaxValue;
+            double maxArea = double.MinValue;
+            double avgArea = 0;
+
+            double minAng = double.MaxValue;
+            double maxAng = double.MinValue;
+            double avgAng = 0;
+            foreach (var item in Triangles)
+            {
+                double area = item.area;
+                avgArea += area;
+
+                for (int i = 0; i < 3; i++)
+                {
+                    Vec2 a = Vertices[(i + 2) % 4];
+                    Vec2 b = Vertices[i];
+                    Vec2 c = Vertices[(i + 1) % 4];
+
+                    double ang = CDT.Angle(a, b, c) * 180 / Math.PI;
+                    if (minAng > ang) minAng = ang;
+                    if (maxAng < ang) maxAng = ang;
+                    avgAng += ang;
+                }
+
+                if (minArea > area) minArea = area;
+                if (maxArea < area) maxArea = area;
+            }
+            avgArea /= Triangles.Count;
+            avgAng /= 3 * Triangles.Count;
+            Console.WriteLine();
+            Console.WriteLine("count tri: " + Triangles.Count);
+            Console.WriteLine("count vtx: " + Vertices.Count);
+            Console.WriteLine("Area min: " + minArea);
+            Console.WriteLine("Area max: " + maxArea);
+            Console.WriteLine("Area avg: " + avgArea);
+            Console.WriteLine();
+            Console.WriteLine("Ang min: " + minAng);
+            Console.WriteLine("Ang max: " + maxAng);
+            Console.WriteLine("Ang avg: " + avgAng);
+        }
 
         public CDT Triangulate(CDTInput input)
         {
-            Stopwatch sw = Stopwatch.StartNew();
-            long last = 0;
-
             _v.Clear();
             _t.Clear();
             _affected.Clear();
             _toLegalize.Clear();
             _constrainedEdges.Clear();
-            Console.WriteLine($"[Init] {sw.ElapsedMilliseconds - last} ms");
-            last = sw.ElapsedMilliseconds;
 
             CDTPreprocessor processed = new CDTPreprocessor(input);
             Rect rect = processed.Rect;
             AddSuperTriangle(rect);
-            Console.WriteLine($"[Preprocessing + SuperTriangle] {sw.ElapsedMilliseconds - last} ms");
-            last = sw.ElapsedMilliseconds;
 
             double expansionMargin = Math.Max(5, Math.Max(rect.dx, rect.dy) * 0.01);
-            _quad = new PointQuadtree(rect.Expand(expansionMargin));
+            PointQuadtree quad = new PointQuadtree(rect.Expand(expansionMargin));
 
             HashSet<Segment> seen = new HashSet<Segment>();
             foreach ((Vec2 a, Vec2 b) in processed.Constraints)
             {
-                int ai = _quad.IndexOf(a.x, a.y);
+                int ai = quad.IndexOf(a.x, a.y);
                 if (ai == NO_INDEX)
                 {
-                    ai = Insert(_quad, a);
-                }
-                else
-                {
-                    ai += 3;
+                    ai = Insert(quad, a);
                 }
 
-                int bi = _quad.IndexOf(b.x, b.y);
+                int bi = quad.IndexOf(b.x, b.y);
                 if (bi == NO_INDEX)
                 {
-                    bi = Insert(_quad, b);
-                }
-                else
-                {
-                    bi += 3;
+                    bi = Insert(quad, b);
                 }
 
                 var s = new Segment(ai, bi);
@@ -73,31 +99,17 @@ namespace CDTSharp
                    
             }
 
-            Console.WriteLine($"[Add constraints] {sw.ElapsedMilliseconds - last} ms");
-            last = sw.ElapsedMilliseconds;
-
             foreach (Vec2 item in processed.PointConstraints)
-                Insert(_quad, item);
-            Console.WriteLine($"[Insert point constraints] {sw.ElapsedMilliseconds - last} ms");
-            last = sw.ElapsedMilliseconds;
+                Insert(quad, item);
 
             MarkHoles(processed.Polygons);
-            Console.WriteLine($"[Mark holes] {sw.ElapsedMilliseconds - last} ms");
-            last = sw.ElapsedMilliseconds;
 
             if (input.Refine)
             {
-                int refined = Refine(processed, input.MaxArea, input.MinAngle);
-                Console.WriteLine($"[Refine] {sw.ElapsedMilliseconds - last} ms (Refined: {refined})");
-                last = sw.ElapsedMilliseconds;
+                int refined = Refine(input.MaxArea);
             }
 
             FinalizeMesh(input.KeepConvex, input.KeepSuper);
-            Console.WriteLine($"[Finalize mesh] {sw.ElapsedMilliseconds - last} ms");
-            last = sw.ElapsedMilliseconds;
-
-            Console.WriteLine($"[Total] Triangulation completed in {sw.ElapsedMilliseconds} ms");
-            Console.WriteLine($"vts: {_v.Count} tris: {_t.Count}");
             return this;
         }
 
@@ -179,30 +191,8 @@ namespace CDTSharp
             return false;
         }
 
-        bool Enchrouched(Segment seg)
+        public int Refine(double maxArea)
         {
-            var (a, b) = seg;
-            Circle diam = new Circle(_v[a], _v[b]);
-            double r = Math.Sqrt(diam.radiusSquared);
-            Rect bounds = new Rect(diam.x - r, diam.y - r, diam.x + r, diam.y + r);
-
-            List<PointQuadtree.Point> elems = _quad.Query(bounds);
-            foreach (var item in elems)
-            {
-                int index = item.Index + 3;
-                if (index == a || index == b) continue;
-
-                Vec2 v = _v[index];
-                if (diam.Contains(v.x, v.y))
-                    return true;
-            }
-            return false;
-        }
-
-        public int Refine(CDTPreprocessor polys, double maxArea, double minAngle)
-        {
-            minAngle *= Math.PI / 180d;
-
             int refinedCount = 0;
             int falseCheck = 0;
 
@@ -212,7 +202,7 @@ namespace CDTSharp
             foreach (var segment in _constrainedEdges)
             {
                 allSegments.Add(segment);
-                if (Enchrouched(segment))
+                if (Enchrouched(segment, _v))
                 {
                     segmentQueue.Enqueue(segment);
                 }
@@ -221,17 +211,14 @@ namespace CDTSharp
             for (int i = 0; i < _t.Count; i++)
             {
                 CDTTriangle tri = _t[i];
-                if (IsBadTriangle(tri, minAngle, maxArea))
+                if (IsBadTriangle(tri, maxArea))
                 {
                     triangleQueue.Enqueue(i);
                 }
             }
 
-            double minSqrLen = Math.Sqrt(4.0 * maxArea / Math.Sqrt(3)) * 0.25;
+            double minSqrLen = Math.Sqrt(4.0 * maxArea / Math.Sqrt(3));
             minSqrLen *= minSqrLen;
-
-            List<Vec2> segmentVertices = new List<Vec2>();
-            List<Vec2> circumVertices = new List<Vec2>();
 
             int checkedTris = 0;
             int checkedEdges = 0;
@@ -246,17 +233,13 @@ namespace CDTSharp
 
                     Vec2 a = _v[ia];
                     Vec2 b = _v[ib];
-                    double sqrLen = Vec2.SquareLength(a - b);
-                    if (sqrLen < minSqrLen)
+                    Circle diam = new Circle(a, b);
+                    if (diam.radiusSquared * 4 < minSqrLen)
                     {
                         continue;
                     }
 
-                    Circle diam = new Circle(a, b);
-
                     Vec2 mid = new Vec2(diam.x, diam.y);
-                    segmentVertices.Add(mid);
-
                     var (triIndex, edgeIndex) = FindContaining(mid, EPS);
                     if (edgeIndex == NO_INDEX)
                     {
@@ -269,9 +252,6 @@ namespace CDTSharp
                     }
 
                     int insertedIndex = Insert(mid, triIndex, edgeIndex);
-
-                    _quad.Insert(mid.x, mid.y);
-
                     refinedCount++;
 
                     Segment s1 = new Segment(ia, insertedIndex);
@@ -280,12 +260,12 @@ namespace CDTSharp
                     allSegments.Add(s1);
                     allSegments.Add(s2);
 
-                    if (Enchrouched(s1) && IsVisibleFromInterior(allSegments, s1, mid)) segmentQueue.Enqueue(s1);
-                    if (Enchrouched(s2) && IsVisibleFromInterior(allSegments, s2, mid)) segmentQueue.Enqueue(s2);
+                    if (IsVisibleFromInterior(allSegments, s1, mid)) segmentQueue.Enqueue(s1);
+                    if (IsVisibleFromInterior(allSegments, s2, mid)) segmentQueue.Enqueue(s2);
 
                     foreach (var item in _affected)
                     {
-                        if (IsBadTriangle(_t[item], minAngle, maxArea))
+                        if (IsBadTriangle(_t[item], maxArea))
                         {
                             triangleQueue.Enqueue(item);
                         }
@@ -293,19 +273,20 @@ namespace CDTSharp
                     continue;
                 }
 
+
                 if (triangleQueue.Count > 0)
                 {
                     int triIndex = triangleQueue.Dequeue();
                     checkedTris++;
                     CDTTriangle tri = _t[triIndex];
-                    if (!IsBadTriangle(tri, minAngle, maxArea))
+
+                    if (!IsBadTriangle(tri, maxArea))
                     {
                         falseCheck++;
                         continue;
                     }
 
                     Vec2 cc = new Vec2(tri.circle.x, tri.circle.y);
-
                     bool encroaches = false;
                     foreach (Segment seg in allSegments)
                     {
@@ -322,22 +303,19 @@ namespace CDTSharp
                         continue;
                     }
 
-                    circumVertices.Add(cc);
-                 
-
                     var (tIndex, eIndex) = FindContaining(cc, EPS);
+
                     if (tIndex == NO_INDEX)
                     {
                         throw new Exception("Could not locate triangle for circumcenter.");
                     }
 
                     int vi = Insert(cc, tIndex, eIndex);
-                    _quad.Insert(cc.x, cc.y);
-
                     refinedCount++;
+
                     foreach (var item in _affected)
                     {
-                        if (IsBadTriangle(_t[item], minAngle, maxArea))
+                        if (IsBadTriangle(_t[item], maxArea))
                         {
                             triangleQueue.Enqueue(item);
                         }
@@ -351,23 +329,7 @@ namespace CDTSharp
             return refinedCount;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool IsAngleTooSmall(Vec2 a, Vec2 b, Vec2 c, double cosMinAngle)
-        {
-            Vec2 ab = a - b;
-            Vec2 cb = c - b;
-
-            double abLen2 = Vec2.Dot(ab, ab);
-            double cbLen2 = Vec2.Dot(cb, cb);
-            if (abLen2 == 0 || cbLen2 == 0) return true; 
-
-            double dot = Vec2.Dot(ab, cb);
-            double cosTheta = dot / Math.Sqrt(abLen2 * cbLen2);
-
-            return cosTheta > cosMinAngle;
-        }
-
-        public bool IsBadTriangle(CDTTriangle tri, double minAllowedRad, double maxAllowedArea)
+        public bool IsBadTriangle(CDTTriangle tri, double maxAllowedArea)
         {
             if (tri.super || tri.parents.Count == 0) return false;
 
@@ -379,20 +341,9 @@ namespace CDTSharp
 
             double ab = Vec2.SquareLength(a - b);
             double bc = Vec2.SquareLength(b - c);
-            double ac = Vec2.SquareLength(c - a);
-            double minEdge = Math.Min(Math.Min(ab, bc), ac);
-
-            if (tri.circle.radiusSquared / minEdge > 2)
-            {
-                return false;
-            }
-
-            double radABC = Angle(a, b, c);
-            double radBCA = Angle(b, c, a);
-            double radCAB = Math.PI - radABC - radBCA;
-            double minRad = Math.Min(Math.Min(radABC, radBCA), radCAB);
-
-            return minRad < minAllowedRad;
+            double ca = Vec2.SquareLength(c - a);
+            double minEdgeSq = Math.Min(ab, Math.Min(bc, ca));
+            return tri.circle.radiusSquared / minEdgeSq > 2;
         }
 
         int Insert(PointQuadtree quad, Vec2 v)
@@ -665,7 +616,7 @@ namespace CDTSharp
             }
         }
 
-        public int[] FlipEdge(int triangleIndex, int edgeIndex)
+        public void FlipEdge(int triangleIndex, int edgeIndex)
         {
             /*
              
@@ -715,7 +666,11 @@ namespace CDTSharp
             Vec2 v2 = _v[i2];
             Vec2 v3 = _v[i3];
 
-            IEnumerable<int> parents = tri0.parents.Concat(tri1.parents);
+            List<int> parents = new List<int>(tri0.parents);
+            foreach (int p in tri1.parents)
+            {
+                if (!parents.Contains(p)) parents.Add(p);
+            }
 
             double a0 = Area(v3, v1, v2);
             _t[t0] = new CDTTriangle(
@@ -741,18 +696,7 @@ namespace CDTSharp
             // push edge oppsote to v1
             _toLegalize.Push(new Edge(t0, 2));
             _toLegalize.Push(new Edge(t1, 1));
-
-            return new[]
-            {
-                t0,
-                t1,
-                //tri0.adjacent[e12],
-                //tri1.adjacent[e23],
-                //tri1.adjacent[e30],
-                //tri0.adjacent[e01]
-            };
         }
-
 
         public bool ShouldFlip(int triangleIndex, int edgeIndex)
         {
@@ -779,6 +723,7 @@ namespace CDTSharp
             int e20 = edgeIndex;
             CDTTriangle t0 = _t[triangleIndex];
             int t1Index = t0.adjacent[e20];
+
             if (t1Index == NO_INDEX || t0.constraint[e20])
             {
                 return false;
@@ -915,18 +860,17 @@ namespace CDTSharp
         public void Legalize()
         {
             _affected.Clear();
+
             while (_toLegalize.Count > 0)
             {
                 var (t0, edge) = _toLegalize.Pop();
-
+                _affected.Add(t0);
+   
                 if (ShouldFlip(t0, edge))
                 {
-                    int[] affected = FlipEdge(t0, edge);
-                    foreach (var item in affected)
-                    {
-                        if (item == NO_INDEX) continue;
-                        _affected.Add(item);
-                    }
+                    int t1 = _t[t0].adjacent[edge];
+                    _affected.Add(t1);
+                    FlipEdge(t0, edge);
                 }
             }
         }

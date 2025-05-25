@@ -24,7 +24,7 @@ namespace CDTSharp
 
             public Point(int index, double x, double y)
             {
-                Index = index;
+                Index = index + 3;
                 X = x; Y = y;
             }
         }
